@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_costs') }} — Volvo EX30 Mate{% endblock %}
+{% block content %}
+{% set cs = charge_stats %}
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-white">{{ t('nav_costs') }}</h1>
+  </div>
+
+  <!-- Summary tiles -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="card">
+      <div class="stat-label">{{ t('total_cost') }}</div>
+      <div class="stat-value">{{ cs.cost | dec(2) }} <span class="text-base text-slate-400">{{ cur.symbol }}</span></div>
+    </div>
+    <div class="card">
+      <div class="stat-label">{{ t('energy_consumed') }}</div>
+      <div class="stat-value">{{ cs.energy | dec(1) }} <span class="text-base text-slate-400">kWh</span></div>
+    </div>
+    <div class="card">
+      <div class="stat-label">{{ t('charges_count') }}</div>
+      <div class="stat-value">{{ cs.n }}</div>
+    </div>
+    <div class="card">
+      <div class="stat-label">{{ t('avg_cost_per_charge') }}</div>
+      <div class="stat-value">{{ (cs.cost / cs.n if cs.n else 0) | dec(2) }} <span class="text-base text-slate-400">{{ cur.symbol }}</span></div>
+    </div>
+  </div>
+
+  <!-- Cost per charge -->
+  <div class="card">
+    <h2 class="text-lg font-semibold text-white mb-4">{{ t('cost_per_charge') }}</h2>
+    <div id="cost-chart" style="height:320px"></div>
+    <script>
+    (function () {
+      var data = [
+        {% for c in charges %}
+        { label: "{{ c.end_time or c.start_time }}", value: {{ c.cost or 0 }} },
+        {% endfor %}
+      ];
+      var el = document.getElementById('cost-chart');
+      if (window.MateCharts && data.length) {
+        var chart = new ApexCharts(el, {
+          series: [{ name: "{{ cur.symbol }}", data: data.map(function (d) { return d.value; }) }],
+          chart: { type: 'bar', height: 320, toolbar: { show: false } },
+          colors: ['#14b8a6'],
+          xaxis: { categories: data.map(function (d) { return d.label; }), labels: { style: { colors: '#94a3b8' }, rotate: -45 } },
+          yaxis: { labels: { style: { colors: '#94a3b8' }, formatter: function (v) { return v.toFixed(2); } } },
+          tooltip: { theme: 'dark' },
+        });
+        chart.render();
+      }
+    })();
+    </script>
+  </div>
+
+  <!-- Energy mix -->
+  <div class="card">
+    <h2 class="text-lg font-semibold text-white mb-2">{{ t('energy_by_type') }}</h2>
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-slate-750 rounded-lg p-4">
+        <div class="text-sm text-slate-400">AC (Wallbox)</div>
+        <div class="text-xl font-bold text-white">{{ ac_energy | dec(1) }} kWh <span class="text-xs text-slate-500">· {{ ac_count }} {{ t('charges_count') }}</span></div>
+      </div>
+      <div class="bg-slate-750 rounded-lg p-4">
+        <div class="text-sm text-slate-400">DC (Rapida)</div>
+        <div class="text-xl font-bold text-yellow-400">{{ dc_energy | dec(1) }} kWh <span class="text-xs text-slate-500">· {{ dc_count }} {{ t('charges_count') }}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

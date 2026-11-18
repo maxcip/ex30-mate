@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Volvo EX30 — LeapMotor Mate{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="static/mate-icon.svg">
+  <base href="{{ request.headers.get('x-ingress-path', '') }}/">
+  <script src="static/vendor/tailwind.js"></script>
+  <script src="static/vendor/htmx.min.js"></script>
+  <script src="static/vendor/apexcharts.min.js"></script>
+  <script src="static/band-chart.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { brand: '#14b8a6' }
+        }
+      }
+    }
+  </script>
+  <style>
+    .soc-bar { transition: width 0.6s ease; }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.625rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: rgb(148 163 184);
+      text-decoration: none;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-link:hover { color: white; background: rgb(51 65 85); }
+    .nav-link.active { color: white; background: rgb(51 65 85); }
+    .card {
+      background: rgb(30 41 59);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      border: 1px solid rgb(51 65 85);
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: rgb(148 163 184);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.25rem;
+    }
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+    }
+    .bg-slate-750 { background: rgb(36 49 65); }
+    .tree-summary {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none; list-style: none;
+    }
+    .tree-year  { padding: .75rem 1rem;   border-radius: .75rem; background: #1e293b; border: 1px solid #334155; }
+    .tree-month { padding: .625rem 1rem;  border-radius: .5rem;  background: #0f172a; border: 1px solid #1e293b; }
+    .tree-day   { padding: .5rem .75rem;  border-radius: .5rem;  background: #0a1628; border: 1px solid #1a2438; }
+    .chevron { transition: transform .2s; display: inline-block; color: rgb(100 116 139); }
+    details[open] > .tree-summary .chevron { transform: rotate(90deg); }
+    .trip-row {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .5rem .75rem; border-radius: .5rem;
+      background: #060e1a; border: 1px solid #111c2e;
+      text-decoration: none; transition: background .15s, border-color .15s;
+    }
+    .trip-row:hover { background: rgba(51,65,85,.4); border-color: #334155; }
+    .charge-row { cursor: pointer; list-style: none; border-color: #1e293b; }
+    .charge-row::-webkit-details-marker { display: none; }
+    .charge-body { background: #0b1526; border: 1px solid #1e293b; border-top: 0; border-radius: 0 0 .5rem .5rem; padding: .75rem; }
+    .charge-card[open] { margin-bottom: 1rem; }
+    .charge-card[open] > .charge-body { border-color: #334155; }
+    .charge-note-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .charge-actions > button { white-space: nowrap; }
+    .eff-pill {
+      display: inline-flex; align-items: center; gap: .2rem;
+      padding: .12rem .45rem; border-radius: 999px;
+      font-size: .72rem; font-weight: 600; line-height: 1; white-space: nowrap;
+    }
+    .eff-pill .unit { font-weight: 400; opacity: .7; font-size: .65rem; }
+    .eff-good { color: #4ade80; background: rgba(34,197,94,.12); }
+    .eff-mid  { color: #facc15; background: rgba(234,179,8,.12); }
+    .eff-bad  { color: #f87171; background: rgba(239,68,68,.12); }
+    .soc-mini {
+      position: relative; width: 64px; height: 7px; flex-shrink: 0;
+      border-radius: 999px; background: #1e293b; overflow: hidden;
+    }
+    .soc-mini i { position: absolute; top: 0; height: 100%; display: block; }
+    .soc-rem  { left: 0; background: #22c55e; }
+    .soc-used { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+    .hero-wrap { container-type: inline-size; }
+    .hero-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .75rem; }
+    @container (min-width: 880px) { .hero-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; } }
+    @container (max-width: 879.98px) { .hero-grid > .hero-tile:last-child:nth-child(odd) { grid-column: 1 / -1; } }
+    .hero-tile {
+      position: relative; overflow: hidden; border-radius: 1rem;
+      padding: 1rem 1.1rem; display: flex; flex-direction: column; align-items: center; text-align: center; gap: .5rem;
+      border: 1px solid rgba(148,163,184,.12);
+    }
+    .hero-ico {
+      width: 42px; height: 42px; flex-shrink: 0; border-radius: .75rem;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem; background: rgba(255,255,255,.10);
+    }
+    .hero-val   { font-size: 1.5rem; font-weight: 700; color: #fff; line-height: 1.1; }
+    .hero-val .u { font-size: .8rem; font-weight: 400; color: rgba(255,255,255,.65); margin-left: .15rem; }
+    .hero-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em;
+                  color: rgba(255,255,255,.6); margin-top: .15rem; }
+    .t-dist   { background: linear-gradient(135deg, #0d9488 0%, #115e59 100%); }
+    .t-trips  { background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%); }
+    .t-eff    { background: linear-gradient(135deg, #334155 0%, #1e293b 100%); }
+    .t-regen  { background: linear-gradient(135deg, #16a34a 0%, #14532d 100%); }
+    .t-energy { background: linear-gradient(135deg, #0284c7 0%, #0c4a6e 100%); }
+    .soc-good { color: #22c55e; }
+    .soc-mid  { color: #eab308; }
+    .soc-bad  { color: #f87171; }
+    .eff-pill { display: inline-flex; align-items: center; gap: .2rem; }
+    .stat-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    @media (max-width: 480px) { .stat-tiles .stat-label { font-size: 0.7rem; letter-spacing: 0; } }
+    :root { color-scheme: dark; }
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator { display: inline; }
+    .htmx-request.htmx-indicator { display: inline; }
+    .leaflet-pane, .leaflet-control-container { z-index: 10 !important; }
+    .leaflet-top, .leaflet-bottom { z-index: 10 !important; }
+    .lm-load-error { background:#f8717114;border:1px solid #f8717144;color:#fca5a5; }
+    .lm-load-error { min-height: 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
+    .charge-card { padding: 0.75rem; margin-bottom: 0.75rem; border-radius: 0.5rem; background: #0b1526; border: 1px solid #1e293b; }
+  </style>
+</head>
+<body class="h-full bg-slate-900 text-slate-100 flex flex-col md:flex-row" data-autorefresh="{% block autorefresh %}30{% endblock %}">
+
+  <!-- Mobile Header -->
+  <header class="md:hidden flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-slate-700 sticky top-0 z-[1001]">
+    <div class="flex items-center gap-2">
+      <a href="." aria-label="{{ t('nav_overview') }}"
+         class="flex items-center gap-2 rounded-md hover:opacity-80 focus:outline-none">
+        <img src="static/mate-icon.svg" alt="Volvo EX30 Mate" class="h-6 w-6">
+        <span class="text-sm font-medium text-slate-100">Volvo EX30 <span class="text-brand">Mate</span></span>
+      </a>
+      {% if demo %}<span title="Sample data — no real car" class="text-[10px] font-bold text-slate-900 bg-amber-400 rounded px-1.5 py-0.5 self-center ml-1 tracking-wide">DEMO</span>{% endif %}
+      <span title="v1.0.0" class="text-[10px] text-slate-500 font-normal self-end mb-0.5 whitespace-nowrap">v{{ version }}{% if shell_version %}<span class="opacity-50"> · D{{ shell_version }}</span>{% endif %}</span>
+    </div>
+    <div class="flex items-center gap-1">
+      {% if vehicle %}
+      <button type="button" title="{{ t('refresh_help') }}" aria-label="{{ t('refresh_now') }}"
+              class="p-2 text-lg leading-none text-slate-300 hover:text-white focus:outline-none disabled:opacity-40"
+              hx-post="api/refresh" hx-swap="none" hx-disabled-elt="this">
+        <span class="htmx-indicator">⏳</span><span>🔄</span>
+      </button>
+      {% endif %}
+      <button id="mobile-menu-btn" class="p-2 text-slate-400 hover:text-white focus:outline-none">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Sidebar Overlay -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-[1002] hidden md:hidden"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-slate-800 border-r border-slate-700 flex flex-col h-screen z-[1003] transform -translate-x-full transition-transform duration-300 md:relative md:translate-x-0 md:w-56 md:flex-shrink-0 md:sticky md:top-0">
+    <div class="hidden md:block px-5 py-5 border-b border-slate-700">
+      <div class="flex items-center gap-2">
+        <a href="." aria-label="{{ t('nav_overview') }}"
+           class="flex items-center gap-2 rounded-md hover:opacity-80 focus:outline-none">
+          <img src="static/mate-icon.svg" alt="Volvo EX30 Mate" class="h-6 w-6">
+          <span class="text-sm font-medium text-slate-100">Volvo EX30 <span class="text-brand">Mate</span></span>
+        </a>
+        {% if demo %}<span title="Sample data — no real car" class="text-[10px] font-bold text-slate-900 bg-amber-400 rounded px-1.5 py-0.5 self-center ml-1 tracking-wide">DEMO</span>{% endif %}
+        <span title="v1.0.0" class="text-[10px] text-slate-500 font-normal self-end mb-0.5 whitespace-nowrap">v{{ version }}{% if shell_version %}<span class="opacity-50"> · D{{ shell_version }}</span>{% endif %}</span>
+      </div>
+    </div>
+
+    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <a href="."           class="nav-link {% if page=='overview'    %}active{% endif %}">
+        <span class="text-lg">⚡</span> {{ t('nav_overview') }}
+      </a>
+      <a href="trips"       class="nav-link {% if page=='trips'       %}active{% endif %}">
+        <span class="text-lg">🗺</span> {{ t('nav_trips') }}
+      </a>
+      <a href="map"         class="nav-link {% if page=='map'         %}active{% endif %}">
+        <span class="text-lg">🌍</span> {{ t('nav_map') }}
+      </a>
+      <a href="charges"     class="nav-link {% if page=='charges'     %}active{% endif %}">
+        <span class="text-lg">🔌</span> {{ t('nav_charges') }}
+      </a>
+      <a href="costs"       class="nav-link {% if page=='costs'       %}active{% endif %}">
+        <span class="text-lg">💰</span> {{ t('nav_costs') }}
+      </a>
+      <a href="statistics"  class="nav-link {% if page=='statistics'  %}active{% endif %}">
+        <span class="text-lg">📊</span> {{ t('nav_statistics') }}
+      </a>
+      <a href="events"      class="nav-link {% if page=='events'      %}active{% endif %}">
+        <span class="text-lg">🕒</span> {{ t('nav_events') }}
+      </a>
+      <a href="report"      class="nav-link {% if page=='report'      %}active{% endif %}">
+        <span class="text-lg">📆</span> {{ t('nav_report') }}
+      </a>
+      <a href="battery"     class="nav-link {% if page=='battery'     %}active{% endif %}">
+        <span class="text-lg">🩺</span> {{ t('nav_battery') }}
+      </a>
+      <a href="maintenance" class="nav-link {% if page=='maintenance' %}active{% endif %}">
+        <span class="text-lg">🧰</span> {{ t('nav_maintenance') }}
+      </a>
+      <a href="commands"    class="nav-link {% if page=='commands'    %}active{% endif %}">
+        <span class="text-lg">🎮</span> {{ t('nav_commands') }}
+      </a>
+      <a href="scheduling"  class="nav-link {% if page=='scheduling'  %}active{% endif %}">
+        <span class="text-lg">📅</span> {{ t('nav_scheduling') }}
+      </a>
+      <a href="navigation"  class="nav-link {% if page=='navigation'  %}active{% endif %}">
+        <span class="text-lg">🧭</span> {{ t('nav_navigation') }}
+      </a>
+      <a href="vehicle"     class="nav-link {% if page=='vehicle'     %}active{% endif %}">
+        <span class="text-lg">🚗</span> {{ t('nav_vehicle') }}
+      </a>
+      {% if wallbox_enabled %}
+      <a href="wallbox"     class="nav-link {% if page=='wallbox'     %}active{% endif %}">
+        <span class="text-lg">🔋</span>
+        <span class="flex-1 min-w-0">
+          {{ t('nav_wallbox') }}
+          {% if wb_active_profile_name %}
+          <span class="block text-[10px] text-slate-400 truncate leading-tight">{{ wb_active_profile_name }}</span>
+          {% endif %}
+        </span>
+      </a>
+      {% endif %}
+    </nav>
+
+    <div class="px-3 py-4 border-t border-slate-700">
+      <a href="settings" class="nav-link {% if page=='settings' %}active{% endif %}">
+        <span class="text-lg">⚙️</span> {{ t('nav_settings') }}
+      </a>
+      {% if auth_enabled %}
+      <a href="logout" class="nav-link">
+        <span class="text-lg">🚪</span> {{ t('logout') }}
+      </a>
+      {% endif %}
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 overflow-y-auto">
+    {% if auth_unprotected and not auth_dismissed and not demo %}
+    <div id="auth-bar" style="position:sticky;top:0;z-index:1000;background:#7f1d1d;color:#fee2e2;
+         display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;
+         padding:8px 14px;font-size:13px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.3)">
+      <span>🔓 {{ t('auth_warning_banner') }}</span>
+      <a href="settings#security"
+         style="background:#fee2e2;color:#7f1d1d;border-radius:8px;padding:6px 12px;
+                font-size:12px;font-weight:700;text-decoration:none">{{ t('auth_warning_cta') }}</a>
+      <button type="button" hx-post="api/settings/dismiss-auth-warning" hx-swap="none"
+              style="background:transparent;color:#fecaca;border:1px solid #b91c1c;border-radius:8px;
+                     padding:6px 10px;font-size:12px;cursor:pointer">{{ t('auth_warning_hide') }}</button>
+    </div>
+    {% endif %}
+    {% if shell_version and not desktop_notice_dismissed and not demo %}
+    <div id="desktop-bar" style="position:sticky;top:0;z-index:1000;background:#1e3a5f;color:#dbeafe;
+         display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;
+         padding:8px 14px;font-size:13px;font-weight:500;box-shadow:0 2px 10px rgba(0,0,0,.3)">
+      <span>💤 {{ t('desktop_open_notice') }}</span>
+      <button type="button" hx-post="api/settings/dismiss-desktop-notice"
+              hx-target="#desktop-bar" hx-swap="delete"
+              style="background:transparent;color:#bfdbfe;border:1px solid #3b6ea5;border-radius:8px;
+                     padding:6px 10px;font-size:12px;cursor:pointer">{{ t('desktop_open_notice_ok') }}</button>
+    </div>
+    {% endif %}
+    {% if demo %}
+    <div id="demo-bar" style="position:sticky;top:0;z-index:1000;background:#f59e0b;
+         color:#0f172a;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;
+         padding:8px 14px;font-size:13px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.3)">
+      <span>🧪 {{ t('demo_banner') }}</span>
+      <button type="button" id="demo-exit-btn" onclick="exitDemo()"
+              style="background:#0f172a;color:#fff;border:0;border-radius:8px;padding:6px 12px;
+                     font-size:12px;font-weight:700;cursor:parameter">{{ t('demo_exit') }}</button>
+    </div>
+    {% endif %}
+    {% if research and not beta_notice_dismissed %}
+    <div id="beta-bar" style="position:sticky;top:0;z-index:1000;background:#7c3aed;color:#fff;
+         display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;
+         padding:8px 14px;font-size:12.5px;font-weight:600;line-height:1.4;text-align:center;
+         box-shadow:0 2px 10px rgba(0,0,0,.3)">
+      <span>🔬 {{ t('beta_banner') }}</span>
+      <button type="button" hx-post="api/settings/dismiss-beta-notice"
+              hx-target="#beta-bar" hx-swap="delete"
+              style="background:transparent;color:#e9d5ff;border:1px solid #a78bfa;border-radius:8px;
+                     padding:5px 10px;font-size:12px;cursor:parameter">{{ t('btn_close') }}</button>
+    </div>
+    {% endif %}
+    {% if unconfigured_cars %}
+    <div id="unconfigured-bar" style="position:sticky;top:0;z-index:1000;background:#b45309;
+         color:#fff;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;
+         padding:8px 14px;font-size:12.5px;font-weight:600;line-height:1.4;text-align:center;
+         box-shadow:0 2px 10px rgba(0,0,0,.3)">
+      <span>⚠ {{ t('unconfigured_banner').format(cars=unconfigured_cars) }}</span>
+      <a href="{{ request.headers.get('x-ingress-path', '') }}/setup"
+         style="background:#0f172a;color:#fff;border-radius:8px;padding:6px 12px;font-size:12px;
+                font-weight:700;text-decoration:none;white-space:nowrap">{{ t('unconfigured_banner_btn') }}</a>
+    </div>
+    {% endif %}
+    {# The pages' column. The Map empties it: on a wide screen the map is the page (D#438). #}
+    <div class="{% block content_width %}max-w-6xl{% endblock %} mx-auto px-4 sm:px-6 py-6">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <script>
+    const menuBtn = document.getElementById('mobile-menu-btn');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    function openMenu() {
+      sidebar.classList.add('drawer-open');
+      overlay.classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+    }
+    function closeMenu() {
+      sidebar.classList.remove('drawer-open');
+      overlay.classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+    }
+    function toggleMenu() {
+      sidebar.classList.contains('drawer-open') ? closeMenu() : openMenu();
+    }
+    menuBtn?.addEventListener('click', toggleMenu);
+    overlay?.addEventListener('click', closeMenu);
+  </script>
+
+  <script>
+    const nav = document.querySelector('#sidebar nav');
+    if (!nav) return;
+    const KEY = 'lm_nav_scroll';
+    try {
+      const at = parseFloat(sessionStorage.getItem(KEY) || '0');
+      if (at > 0) nav.scrollTop = at;
+    } catch (e) { /* private window */ }
+    function remember() {
+      try { sessionStorage.setItem(KEY, String(nav.scrollTop)); } catch (e) {}
+    }
+    nav.addEventListener('scroll', remember, {passive: true});
+  </script>
+
+  <script>
+    const secs = parseInt(document.body.dataset.autorefresh || '0', 10);
+    if (!secs) return;
+    setInterval(() => {
+      if (!lmMayReload()) return;
+      lmReload();
+    }, secs * 1000);
+  </script>
+
+  <button id="lm-top-btn"
+          onclick="document.querySelector('main').scrollTo({top:0,behavior:'smooth'})"
+          title="{{ t('back_to_top') }}"
+          style="display:none;position:fixed;bottom:1.25rem;right:1.25rem;z-index:900;
+                 width:40px;height:40px;border-radius:50%;
+                 border:1px solid #475569;background:#1e293b;color:#94a3b8;
+                 font-size:1.15rem;line-height:1;cursor:pointer;
+                 align-items:center;justify-content:center;
+                 box-shadow:0 2px 10px rgba(0,0,0,.45);
+                 transition:opacity .2s,background .15s">↑</button>
+  <script>
+  (function () {
+    var btn = document.getElementById('lm-top-btn');
+    var main = document.querySelector('main');
+    if (!btn || !main) return;
+    main.addEventListener('scroll', function () {
+      var show = main.scrollTop > 300;
+      btn.style.display = show ? 'flex' : 'none';
+    }, { passive: true });
+    btn.addEventListener('mouseenter', function () { btn.style.background = '#334155'; btn.style.color = '#e2e8f0'; });
+    btn.addEventListener('mouseleave', function () { btn.style.background = '#1e293b'; btn.style.color = '#94a3b8'; });
+  })();
+  </script>
+
+  <script>
+  (function () {
+    var KEY = 'lm_calday_' + location.pathname;
+
+    var shown = document.querySelector('[data-cal-month]');
+    shown = shown ? shown.dataset.calMonth : '';
+    function address() {
+      var cal = document.querySelector('[data-cal-month]');
+      if (!cal) return;
+      shown = cal.dataset.calMonth;
+      lmKeepInAddress('highlight', null);
+      lmKeepInAddress('month', shown);
+      document.querySelectorAll('form input[type=hidden][name=year]').forEach(function (el) { el.value = cal.dataset.year; });
+      document.querySelectorAll('form input[type=hidden][name=month]').forEach(function (el) { el.value = cal.dataset.month; });
+    }
+    document.body.addEventListener('htmx:afterSettle', function () {
+      var cal = document.querySelector('[data-cal-month]');
+      if (cal && cal.dataset.calMonth !== shown) address();
+    });
+
+    function remember(u, from, to) {
+      var y = /[?&]year=(\d+)/.exec(u), m = /[?&]month=(\d+)/.exec(u);
+      if (y && m) sessionStorage.setItem(KEY, y[1] + '-' + m[1] + '-' + from + (to != from ? '-' + to : ''));
+      address();
+    }
+
+    document.addEventListener('click', function (e) {
+      var cell = e.target.closest ? e.target.closest('.cal-day') : null;
+      if (!cell) return;
+      var grid = cell.parentElement;
+      if (!grid) return;
+      grid.querySelectorAll('.cal-day[data-selected]').forEach(function (c) {
+        c.removeAttribute('data-selected');
+      });
+      cell.setAttribute('data-selected', '');
+      delete grid.calAnchor;
+      var u = cell.getAttribute('hx-get') || '';
+      var d = /[?&]day=(\d+)/.exec(u);
+      if (d) remember(u, d[1], d[1]);
+    });
+
+    function ring(grid, from, to) {
+      var first = Math.min(from, to), last = Math.max(from, to);
+      grid.querySelectorAll('.cal-day[data-day]').forEach(function (c) {
+        var d = +c.dataset.day;
+        if (d >= first && d <= last) c.setAttribute('data-selected', '');
+        else c.removeAttribute('data-selected');
+      });
+    }
+
+    function rangeCell(e) {
+      return e.target.closest ? e.target.closest('[data-range] > .cal-day') : null;
+    }
+
+    var swallow = false;
+    var pending = null;
+    function unhold() {
+      if (pending) pending.removeAttribute('data-anchor');
+      pending = null;
+    }
+    function letGo() {
+      clearTimeout(hold.timer);
+      if (hold.held) unhold();
+      hold = null;
+    }
+    document.addEventListener('pointerdown', function (e) {
+      swallow = false;
+      if (e.pointerType !== 'touch') return;
+      if (hold) return letGo();
+      if (!e.isPrimary) return;
+      var cell = rangeCell(e);
+      if (!cell) return;
+      var h = hold = {id: e.pointerId, timer: setTimeout(function () {
+        unhold();
+        pending = cell;
+        cell.setAttribute('data-anchor', '');
+        h.held = true;
+      }, 500)};
+    });
+    document.addEventListener('pointerup', function (e) {
+      if (!hold || e.pointerId !== hold.id) return;
+      clearTimeout(hold.timer);
+      swallow = !!hold.held;
+      hold = null;
+    });
+    document.addEventListener('pointercancel', function (e) {
+      if (hold && e.pointerId === hold.id) letGo();
+    });
+    document.addEventListener('contextmenu', function (e) {
+      if (hold && rangeCell(e)) e.preventDefault();
+    });
+  })();
+  </script>
+
+  <script>
+  (function () {
+    function lmCollapseDetails(btn, e) {
+      e.stopPropagation();
+      var det = btn.closest('details');
+      if (!det || !det.open) return;
+      det.open = false;
+      var tree = det.closest('[data-ls-key]');
+      var lsKey = tree && tree.dataset.lsKey;
+      if (lsKey && det.id) {
+        var st = JSON.parse(localStorage.getItem(lsKey) || '{}');
+        st[det.id] = false;
+        localStorage.setItem(lsKey, JSON.stringify(st));
+      }
+    }
+  })();
+  </script>
+
+  {% if demo %}
+  <script>
+    function exitDemo() {
+      const btn = document.getElementById('demo-exit-btn');
+      btn.disabled = true; btn.style.opacity = '0.6';
+      fetch('api/demo/disable', { method: 'POST' })
+        .then(r => r.json())
+        .then(d => { if (d.restarting) demoWaitRestart({{ t('demo_exiting') | tojson }}); })
+        .catch(() => { btn.disabled = false; btn.style.opacity = '1'; });
+    }
+    function demoWaitRestart(msg) {
+      const ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#0f172a;display:flex;'
+        + 'flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#e2e8f0;'
+        + 'text-align:center;padding:24px';
+      ov.innerHTML = '<div style="width:42px;height:42px;border:4px solid #334155;'
+        + 'border-top-color:#14b8a6;border-radius:50%;animation:lmspin 1s linear infinite"></div>'
+        + '<div style="font-size:15px">' + msg + '</div>'
+        + '<style>@keyframes lmspin{to{transform:rotate(360deg)}}</style>';
+      document.body.appendChild(ov);
+      const home = (document.querySelector('base') || {}).href || './';
+      let tries = 0;
+      const poll = () => {
+        tries++;
+        fetch('api/demo/status', { cache: 'no-store' })
+          .then(r => r.ok ? r.json() : Promise.reject())
+          .then(d => {
+            if (d.demo === false || tries > 75) { window.location.href = home; return; }
+            setTimeout(poll, 1000);
+          })
+          .catch(() => { if (tries > 75) { window.location.href = home; return; } setTimeout(poll, 1000); });
+      };
+      setTimeout(poll, 1200);
+    }
+  </script>
+  {% endif %}
+
+  <!-- ── Ask before doing something ── -->
+  <div id="mate-confirm" role="dialog" aria-modal="true" aria-labelledby="mate-confirm-text"
+       style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(2,6,23,.72);
+              align-items:center;justify-content:center;padding:16px">
+    <div style="background:#0b1220;border:1px solid #334155;border-radius:12px;padding:18px;
+                max-width:380px;width:100%">
+      <div id="mate-confirm-text" class="text-sm text-slate-200" style="line-height:1.5"></div>
+      <div class="flex gap-2 mt-4 justify-end">
+        <button type="button" id="mate-confirm-no"
+                class="rounded-lg border border-slate-600 text-slate-300 px-3 py-1.5 text-xs font-medium hover:border-slate-400">{{ t('cancel') }}</button>
+        <button type="button" id="mate-confirm-yes"
+                class="rounded-lg bg-brand text-white px-3 py-1.5 text-xs font-bold hover:bg-teal-500">{{ t('confirm_proceed') }}</button>
+      </div>
+    </div>
+  </div>
+  <script>
+  (function () {
+    var box  = document.getElementById('mate-confirm');
+    var text = document.getElementById('mate-confirm-text');
+    var yes  = document.getElementById('mate-confirm-yes');
+    var no   = document.getElementById('mate-confirm-no');
+    var onYes = null, onNo = null, lastFocus = null;
+    function close(run) {
+      var fn = run === 'yes' ? onYes : run === 'no' ? onNo : null;
+      box.style.display = 'none';
+      onYes = onNo = null;
+      document.removeEventListener('keydown', key);
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+      lastFocus = null;
+      if (fn) fn();
+    }
+    function key(e) {
+      if (e.key === 'Escape') { e.preventDefault(); close('no'); }
+      else if (e.key === 'Enter') { e.preventDefault(); close('yes'); }
+    }
+    window.mateConfirm = function (question, proceed, cancel) {
+      text.textContent = question;
+      onYes = proceed || null;
+      onNo = cancel || null;
+      lastFocus = document.activeElement;
+      box.style.display = 'flex';
+      document.addEventListener('keydown', key);
+      yes.focus();
+    };
+    yes.addEventListener('click', function () { close('yes'); });
+    no.addEventListener('click', function () { close('no'); });
+    box.addEventListener('click', function (e) { if (e.target === box) close('no'); });
+    document.body.addEventListener('htmx:confirm', function (evt) {
+      if (!evt.detail.question) return;
+      evt.preventDefault();
+      window.mateConfirm(evt.detail.question, function () {
+        evt.detail.issueRequest(true);
+      });
+    });
+  })();
+  </script>
+
+  <script>
+  (function () {
+    function failed(e) {
+      var d = e.detail || {};
+      var tgt = d.target || d.elt;
+      if (!tgt || !tgt.parentElement || tgt === document.body) return;
+      var host = tgt.parentElement;
+      var old = host.querySelector(':scope > .lm-load-error');
+      if (old) old.remove();
+      var box = document.createElement('div');
+      box.className = 'lm-load-error mt-2 flex items-center gap-3 rounded-lg px-3 py-2 text-xs';
+      box.style.cssText = 'background:#f8717114;border:1px solid #f8717144;color:#fca5a5';
+      var msg = document.createElement('span');
+      var code = d.xhr && d.xhr.status ? ' (' + d.xhr.status + ')' : '';
+      msg.textContent = {{ t('load_failed') | tojson }} + code;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = {{ t('load_retry') | tojson }};
+      btn.className = 'font-medium underline underline-offset-2 hover:text-white';
+      btn.addEventListener('click', function () {
+        box.remove();
+        var rc = d.requestConfig;
+        if (!rc) { location.reload(); return; }
+        htmx.ajax(rc.verb, rc.path, {
+          source: d.elt, target: tgt, swap: tgt.getAttribute('hx-swap') || 'innerHTML'
+        }).catch(function () {});   // rejected when the retry is aborted, times out or fails to send: every one of
+      });                           // those is an htmx event the listeners above already act on
+      box.lmFor = tgt;
+      box.appendChild(msg);
+      box.appendChild(btn);
+      host.insertBefore(box, tgt.nextSibling);
+    }
+    document.body.addEventListener('htmx:responseError', failed);
+    document.body.addEventListener('htmx:sendError', failed);
+    document.body.addEventListener('htmx:beforeRequest', function (e) {
+      if (!/-day-drawer$/.test(e.detail.target && e.detail.target.id)) return;
+      var host = e.detail.target.parentElement;
+      var old = host && host.querySelector(':scope > .lm-load-error');
+      if (old && old.lmFor === e.detail.target) old.remove();
+    });
+    document.body.addEventListener('htmx:afterSwap', function (e) {
+      var host = e.target && e.target.parentElement;
+      var old = host && host.querySelector(':scope > .lm-load-error');
+      if (old) old.remove();
+    });
+  })();
+  </script>
+
+  <!-- ── Tooltip for the whole app ── -->
+<div id="mate-tip" class="hidden fixed z-[1100] pointer-events-none rounded-lg border border-slate-600 bg-slate-900 px-2.5 py-1.5 text-[11px] leading-snug text-slate-200 shadow-lg max-w-[min(20rem,90vw)] whitespace-pre-line" role="tooltip"></script>
+<script>
+  (function () {
+    var tip = document.getElementById('mate-tip'), cur = null;
+    function place(x, y) {
+      var w = tip.offsetWidth, h = tip.offsetHeight;
+      var l = Math.min(x + 12, window.innerWidth - w - 8), t = y + 16;
+      if (t + h > window.innerHeight - 8) t = y - h - 10;
+      tip.style.left = Math.max(8, l) + 'px'; tip.style.top = Math.max(8, t) + 'px';
+    }
+    function show(el, x, y) { cur = el; tip.textContent = el.getAttribute('data-tip'); tip.classList.remove('hidden'); place(x, y); }
+    function hide() { cur = null; tip.classList.add('hidden'); }
+    function at(e) { return e.target && e.target.closest ? e.target.closest('[data-tip]') : null; }
+    document.addEventListener('pointermove', function (e) {
+      if (e.pointerType !== 'mouse') return;
+      var el = at(e); if (!el) return hide();
+      if (el !== cur) show(el, e.clientX, e.clientY); else place(e.clientX, e.clientY);
+    });
+    document.addEventListener('pointerdown', function (e) {
+      var el = at(e); if (!el) return hide();
+      if (el === cur && !tip.classList.contains('hidden')) return hide();
+      show(el, e.clientX, e.clientY);
+    });
+    document.addEventListener('focusin', function (e) {
+      var el = at(e); if (!el) return hide();
+      var r = el.getBoundingClientRect(); show(el, r.left, r.bottom);
+    });
+    document.addEventListener('focusout', hide);
+    document.addEventListener('scroll', hide, true);
+  })();
+</script>
+</body>
+</html>

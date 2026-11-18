@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_settings') }} — Volvo EX30 Mate{% endblock %}
+{% block content %}
+<div class="space-y-6 max-w-2xl">
+  <div>
+    <h1 class="text-2xl font-bold text-white">{{ t('nav_settings') }}</h1>
+  </div>
+
+  <form method="post" action="api/settings/save" class="card space-y-5">
+    <div>
+      <label class="block text-sm text-slate-400 mb-1">{{ t('language') }}</label>
+      <select name="language" class="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-white">
+        <option value="it" {% if language == 'it' %}selected{% endif %}>Italiano</option>
+        <option value="en" {% if language == 'en' %}selected{% endif %}>English</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm text-slate-400 mb-1">{{ t('currency') }}</label>
+      <select name="currency" class="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-white">
+        <option value="EUR" {% if currency_code == 'EUR' %}selected{% endif %}>EUR (€)</option>
+        <option value="USD" {% if currency_code == 'USD' %}selected{% endif %}>USD ($)</option>
+        <option value="GBP" {% if currency_code == 'GBP' %}selected{% endif %}>GBP (£)</option>
+        <option value="SEK" {% if currency_code == 'SEK' %}selected{% endif %}>SEK (kr)</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm text-slate-400 mb-1">{{ t('unit_system') }}</label>
+      <input type="text" value="metric" disabled class="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-slate-400">
+    </div>
+    <div>
+      <button type="submit" class="rounded-lg bg-brand hover:bg-teal-500 text-white px-4 py-2 text-sm font-medium">
+        {{ t('save') }}
+      </button>
+    </div>
+  </form>
+
+  <div class="card">
+    <h2 class="text-lg font-semibold text-white mb-2">{{ t('data_source') }}</h2>
+    <p class="text-sm text-slate-400">
+      {{ t('live_mode') if not demo else t('demo_mode') }} · v{{ version }}
+    </p>
+  </div>
+</div>
+{% endblock %}

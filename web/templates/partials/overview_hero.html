@@ -1,0 +1,80 @@
+{% set v = vehicle %}
+<div class="hero-wrap w-full">
+  <div class="hero-grid">
+    <!-- Vehicle identity -->
+    <div class="hero-tile t-trips">
+      <div class="hero-ico">🚗</div>
+      <div class="hero-val">{{ v.car_type or 'Volvo EX30' }}<span class="u">{{ v.model_variant or '' }}</span></div>
+      <div class="hero-label">{{ t('vehicle') }}</div>
+    </div>
+
+    <!-- Odometer -->
+    <div class="hero-tile t-dist">
+      <div class="hero-ico">📏</div>
+      <div class="hero-val">{{ (status.odometer_km or 0) | dist(0) }}<span class="u">{{ dist_unit() }}</span></div>
+      <div class="hero-label">{{ t('odometer') }}</div>
+    </div>
+
+    <!-- Range -->
+    <div class="hero-tile t-regen">
+      <div class="hero-ico">⚡</div>
+      <div class="hero-val">{{ dist_val(status.range_km if status else 0) | int }}<span class="u">{{ dist_unit() }}</span></div>
+      <div class="hero-label">{{ t('range') }}</div>
+    </div>
+
+    <!-- Efficiency -->
+    <div class="hero-tile t-eff">
+      <div class="hero-ico">🎯</div>
+      <div class="hero-val">{{ (stats.avg_eff or 165) | int }}<span class="u">Wh/km</span></div>
+      <div class="hero-label">{{ t('efficiency') }}</div>
+    </div>
+
+    <!-- Energy consumed -->
+    <div class="hero-tile t-energy">
+      <div class="hero-ico">🔌</div>
+      <div class="hero-val">{{ (stats.total_energy or 0) | dec(1) }}<span class="u">kWh</span></div>
+      <div class="hero-label">{{ t('energy_consumed') }}</div>
+    </div>
+
+    <!-- Cost -->
+    <div class="hero-tile t-energy">
+      <div class="hero-ico">💰</div>
+      <div class="hero-val">{{ (stats.total_cost or 0) | dec(2) }}<span class="u">{{ cur.symbol }}</span></div>
+      <div class="hero-label">{{ t('total_cost') }}</div>
+    </div>
+  </div>
+
+  <!-- Quick commands -->
+  <div class="mt-4">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-xs text-slate-400 uppercase tracking-wide">{{ t('commands') }}</span>
+      <span id="cmd-ready" class="text-center text-[10px] mt-0.5 text-emerald-400">{{ t('cmd_ready') }}</span>
+    </div>
+    <div id="hero-cmds" class="grid grid-cols-2 sm:grid-cols-4 gap-2" data-cmds>
+      <button type="button" hx-post="api/command/lock"
+              class="cmd-btn rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm"
+              data-tip="{{ t('lock_confirm') }}">
+        <span class="hero-spin">🔒</span> {{ t('hero_lock') }}
+      </button>
+      <button type="button" hx-post="api/command/unlock"
+              class="cmd-btn rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm"
+              data-tip="{{ t('unlock_confirm') }}">
+        <span class="hero-spin">🔓</span> {{ t('hero_unlock') }}
+      </button>
+      <button type="button" hx-post="api/command/start_charging"
+              class="cmd-btn rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm">
+        ⚡ {{ t('start_charging') }}
+      </button>
+      <button type="button" hx-post="api/command/stop_charging"
+              class="cmd-btn rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm">
+        ⏸ {{ t('stop_charging') }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .hero-spin.spin-on { animation: spin 1s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .cmds-busy .cmd-btn { opacity: 0.55; pointer-events: none; }
+</style>

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_battery') }} — Volvo EX30 Mate{% endblock %}
+{% block content %}
+{% set s = status %}
+<div class="space-y-6">
+  <div>
+    <h1 class="text-2xl font-bold text-white">{{ t('nav_battery') }}</h1>
+    <p class="text-sm text-slate-400 mt-1">{{ t('battery_history') }}</p>
+  </div>
+
+  {% if s %}
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="card"><div class="stat-label">{{ t('battery') }}</div><div class="stat-value" style="color:{{ soc_color(s.soc) }}">{{ s.soc | dec(1) }}<span class="text-base text-slate-400">%</span></div></div>
+    <div class="card"><div class="stat-label">{{ t('range') }}</div><div class="stat-value">{{ dist_val(s.range_km) | int }} <span class="text-base text-slate-400">{{ dist_unit() }}</span></div></div>
+    <div class="card"><div class="stat-label">{{ t('battery_temp') }}</div><div class="stat-value">{{ s.battery_temp | dec(1) }} <span class="text-base text-slate-400">°C</span></div></div>
+    <div class="card"><div class="stat-label">{{ t('charge_power') }}</div><div class="stat-value">{{ (s.charge_power_kw or 0) | dec(1) }} <span class="text-base text-slate-400">kW</span></div></div>
+  </div>
+
+  <div class="card">
+    <h2 class="text-lg font-semibold text-white mb-4">{{ t('battery_history') }}</h2>
+    <div id="battery-history-chart" style="height:340px"></div>
+    <script>
+    (function () {
+      var data = [
+        {% for h in battery_history %}
+        { t: "{{ h.recorded_at or h.timestamp_ms }}", low: {{ h.soc or 0 }}, high: {{ h.soc or 0 }} },
+        {% endfor %}
+      ];
+      var el = document.getElementById('battery-history-chart');
+      if (window.MateCharts && data.length && data.some(function (d) { return d.t; })) {
+        MateCharts.bandChart(el, data, { low: 0, high: 100, color: '#14b8a6', unit: '%',
+          fmt: function (v) { return Math.round(v); } });
+      }
+    })();
+    </script>
+  </div>
+
+  <div class="card">
+    <h2 class="text-lg font-semibold text-white mb-4">{{ t('charge_power') }}</h2>
+    <div id="power-chart" style="height:260px"></div>
+    <script>
+    (function () {
+      var data = [
+        {% for h in battery_history %}
+        { t: "{{ h.recorded_at or h.timestamp_ms }}", y: {{ h.charge_power_kw or 0 }} },
+        {% endfor %}
+      ];
+      var el = document.getElementById('power-chart');
+      if (window.MateCharts && data.length && data.some(function (d) { return d.t; })) {
+        var chart = new ApexCharts(el, {
+          series: [{ name: 'kW', data: data }],
+          chart: { type: 'area', height: 260, toolbar: { show: false } },
+          colors: ['#f59e0b'],
+          fill: { type: 'gradient', gradient: { shade: 'dark', opacityFrom: 0.6, opacityTo: 0.05 } },
+          xaxis: { type: 'datetime', labels: { style: { colors: '#94a3b8' } } },
+          yaxis: { labels: { style: { colors: '#94a3b8' }, formatter: function (v) { return v.toFixed(1); } } },
+          tooltip: { theme: 'dark' },
+        });
+        chart.render();
+      }
+    })();
+    </script>
+  </div>
+  {% else %}
+  <div class="card text-center py-12 text-slate-500">
+    <div class="text-4xl mb-3">🔋</div>
+    <p>{{ t('waiting_data') }}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

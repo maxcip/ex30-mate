@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_report') }} — Volvo EX30 Mate{% endblock %}
+{% block content %}
+{% set s = stats %}
+<div class="space-y-6">
+  <div>
+    <h1 class="text-2xl font-bold text-white">{{ t('nav_report') }}</h1>
+    <p class="text-sm text-slate-400 mt-1">{{ t('report_summary') }}</p>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="card"><div class="stat-label">{{ t('total_distance') }}</div><div class="stat-value">{{ s.total_dist | dec(1) }} <span class="text-base text-slate-400">{{ dist_unit() }}</span></div></div>
+    <div class="card"><div class="stat-label">{{ t('total_trips') }}</div><div class="stat-value">{{ s.total_trips }}</div></div>
+    <div class="card"><div class="stat-label">{{ t('energy_consumed') }}</div><div class="stat-value">{{ s.total_energy | dec(1) }} <span class="text-base text-slate-400">kWh</span></div></div>
+    <div class="card"><div class="stat-label">{{ t('total_cost') }}</div><div class="stat-value">{{ s.total_cost | dec(2) }} <span class="text-base text-slate-400">{{ cur.symbol }}</span></div></div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="card">
+      <h2 class="text-lg font-semibold text-white mb-4">{{ t('report_trips') }}</h2>
+      {% if trips %}
+      <table class="w-full text-left text-sm">
+        <thead class="text-slate-500 border-b border-slate-700">
+          <tr><th class="px-3 py-2">{{ t('date') }}</th><th class="px-3 py-2 text-right">{{ t('distance') }}</th><th class="px-3 py-2 text-right">{{ t('duration') }}</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800">
+          {% for t in trips %}
+          <tr class="hover:bg-slate-800/40">
+            <td class="px-3 py-2 text-slate-300">{{ t.start_time }}</td>
+            <td class="px-3 py-2 text-right font-mono text-white">{{ t.distance_km | dec(1) }} {{ dist_unit() }}</td>
+            <td class="px-3 py-2 text-right font-mono text-slate-300">{{ t.duration_min | dec(0) }} min</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="text-center py-8 text-slate-500 text-sm">{{ t('no_trips') }}</div>{% endif %}
+    </div>
+    <div class="card">
+      <h2 class="text-lg font-semibold text-white mb-4">{{ t('report_charges') }}</h2>
+      {% if charges %}
+      <table class="w-full text-left text-sm">
+        <thead class="text-slate-500 border-b border-slate-700">
+          <tr><th class="px-3 py-2">{{ t('date') }}</th><th class="px-3 py-2 text-right">{{ t('energy') }}</th><th class="px-3 py-2 text-right">{{ t('cost') }}</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800">
+          {% for c in charges %}
+          <tr class="hover:bg-slate-800/40">
+            <td class="px-3 py-2 text-slate-300">{{ c.end_time or c.start_time }}</td>
+            <td class="px-3 py-2 text-right font-mono text-yellow-400">+{{ (c.energy_kwh or 0) | dec(1) }} kWh</td>
+            <td class="px-3 py-2 text-right font-mono text-white">{{ (c.cost or 0) | dec(2) }} {{ cur.symbol }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="text-center py-8 text-slate-500 text-sm">{{ t('no_charges') }}</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

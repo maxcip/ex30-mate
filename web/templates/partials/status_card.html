@@ -1,0 +1,89 @@
+{% if status %}
+{% set soc = status.soc or 0 %}
+{% set color = soc_color(soc) %}
+{% set ests = range_estimates(status.range_km, soc) %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+  <!-- SOC -->
+  <div class="bg-slate-750 rounded-lg p-3">
+    <div class="stat-label">{{ t('battery') }}</div>
+    <div class="text-5xl font-bold leading-none" style="color:{{ color }}">{{ soc|dec(1) }}<span class="text-2xl text-slate-400">%</span></div>
+  </div>
+  <!-- Range -->
+  <div class="bg-slate-750 rounded-lg p-3">
+    <div class="stat-label">{{ t('range') }}</div>
+    <div class="stat-value text-4xl leading-none mt-1">{{ dist_val(status.range_km)|int }} <span class="text-base text-slate-400">{{ dist_unit() }}</span></div>
+    {% if ests %}
+    {% if ests.show_both %}
+    <div class="text-[11px] text-slate-400 leading-none mt-1">
+      {{ t('range_est_at').replace('{pct}', ests.limit_est.pct|int|string) }}: <span class="font-semibold text-teal-300">{{ dist_val(ests.limit_est.km)|int }}</span> {{ dist_unit() }}
+    </div>
+    <div class="text-[11px] text-slate-400 leading-none">
+      {{ t('range_est_100') }}: <span class="font-semibold text-teal-300">{{ dist_val(ests.full_est.km)|int }}</span> {{ dist_unit() }}
+    </div>
+    {% else %}
+    <div class="text-[11px] text-slate-400 leading-none mt-1">
+      <span class="text-slate-400">{{ t('range_est_100') }}:</span> <span class="font-semibold text-teal-300">{{ dist_val(ests.full_est.km)|int }}</span> {{ dist_unit() }}
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+  <!-- SOC bar -->
+  <div class="w-full bg-slate-700 rounded-full h-3">
+    <div class="soc-bar h-3 rounded-full" style="width:{{ soc }}%; background:{{ color }}"></div>
+  </div>
+</div>
+
+<!-- State, Speed, Gear -->
+<div class="grid grid-cols-3 gap-3 text-center mb-4">
+  <div class="bg-slate-750 rounded-lg p-2">
+    <div class="stat-label">{{ t('state') }}</div>
+    <div class="font-semibold {{ state_color(status) }}">{{ state_label(status) }}</div>
+  </div>
+  <div class="bg-slate-750 rounded-lg p-2">
+    <div class="stat-label">{{ t('speed') }}</div>
+    <div class="font-semibold text-white">{{ speed_val(status.speed_kmh)|int }} <span class="text-xs text-slate-400">{{ speed_unit() }}</span></div>
+  </div>
+  <div class="bg-slate-750 rounded-lg p-2">
+    <div class="stat-label">{{ t('gear') }}</div>
+    <div class="font-semibold text-white text-lg">{{ status.gear or 'P' }}</div>
+  </div>
+</div>
+
+<!-- Odometer & Temperatures -->
+<div class="grid grid-cols-2 gap-3 text-sm">
+  <div class="flex justify-between gap-2 text-slate-400">
+    <span class="min-w-0 break-words">{{ t('odometer') }}</span>
+    <span class="text-white font-medium whitespace-nowrap">{{ (status.odometer_km or 0) | dist(0) }}</span>
+  </div>
+  {% if 'inside_temp' not in absent %}
+  <div class="flex justify-between gap-2 text-slate-400">
+    <span class="min-w-0 break-words">{{ t('inside_temp') }}</span>
+    <span class="text-white font-medium whitespace-nowrap">{{ status.inside_temp | temp(0) if status.inside_temp is not none else '—' }}</span>
+  </div>
+  {% endif %}
+  {% if 'outside_temp' not in absent %}
+  <div class="flex justify-between gap-2 text-slate-400">
+    <span class="min-w-0 break-words">{{ t('outside_temp_label') }} <span class="text-slate-600 cursor-help" tabindex="0" data-tip="{{ t('outside_temp_title') }}">ⓘ</span></span>
+    <span class="text-white font-medium whitespace-nowrap">{{ status.outside_temp | temp(0) if status.outside_temp is not none else '—' }}</span>
+  </div>
+  {% endif %}
+</div>
+
+{% else %}
+<div class="text-center py-8 text-slate-400"><div class="text-4xl mb-3">📡</div><div>{{ t('waiting_data') }}</div><div class="text-sm mt-1">{{ t('check_poller') }}</div></div>
+{% endif %}
+
+<script>
+function soc_color(soc) {
+  var r = Math.round(239 - (soc / 100) * 215);
+  var g = Math.round(130 + (soc / 100) * 125);
+  var b = Math.round(16 - (soc / 100) * 14);
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+function state_color(s) { return s && s.ready ? 'text-emerald-400' : 'text-slate-500'; }
+function state_label(s) {
+  if (!s) return '—';
+  if (s.ready === undefined) return '—';
+  return s.ready ? 'Pronto' : 'Spento';
+}
+</script>

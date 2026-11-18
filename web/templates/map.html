@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_map') }} — Volvo EX30 Mate{% endblock %}
+{% block content_width %}w-full{% endblock %}
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-white">{{ t('nav_map') }}</h1>
+    <span class="text-sm text-slate-400">{{ t('last_position') }}</span>
+  </div>
+
+  <div id="map-full" style="height:calc(100vh - 160px); min-height: 500px" class="rounded-lg overflow-hidden border border-slate-700"></div>
+
+  <script>
+  (function () {
+    var points = [
+      {% for t in trips %}
+      {% if t.start_lat and t.start_lon %}[{{ t.start_lat }}, {{ t.start_lon }}],{% endif %}
+      {% if t.end_lat and t.end_lon %}[{{ t.end_lat }}, {{ t.end_lon }}],{% endif %}
+      {% endfor %}
+    ];
+    var center = [
+      {% if status and status.latitude %}{{ status.latitude }}{% else %}45.4642{% endif %},
+      {% if status and status.longitude %}{{ status.longitude }}{% else %}9.1900{% endif %}
+    ];
+    if (window.MateMap) MateMap.renderTrack('map-full', points, { center: center, zoom: 12 });
+  })();
+  </script>
+</div>
+{% endblock %}

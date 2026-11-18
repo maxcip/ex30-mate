@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_trips') }} — Volvo EX30 Mate{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-white">{{ t('nav_trips') }}</h1>
+    <span class="text-sm text-slate-400">{{ trips|length }} {{ t('trips_count') }}</span>
+  </div>
+
+  {% if trips %}
+  <div class="card overflow-hidden">
+    <table class="w-full text-left text-sm">
+      <thead class="text-slate-500 border-b border-slate-700">
+        <tr>
+          <th class="px-4 py-3 font-medium">{{ t('date') }}</th>
+          <th class="px-4 py-3 font-medium">{{ t('start') }}</th>
+          <th class="px-4 py-3 font-medium">{{ t('destination') }}</th>
+          <th class="px-4 py-3 font-medium text-right">{{ t('distance') }}</th>
+          <th class="px-4 py-3 font-medium text-right">{{ t('duration') }}</th>
+          <th class="px-4 py-3 font-medium text-right">{{ t('efficiency') }}</th>
+          <th class="px-4 py-3 font-medium">{{ t('drive_mode') }}</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800">
+        {% for trip in trips %}
+        <tr class="hover:bg-slate-800/40">
+          <td class="px-4 py-3 text-slate-300 whitespace-nowrap">{{ trip.start_time }}</td>
+          <td class="px-4 py-3 text-slate-300 truncate max-w-[14rem]">{{ trip.start_address or '—' }}</td>
+          <td class="px-4 py-3 text-slate-300 truncate max-w-[14rem]">{{ trip.end_address or '—' }}</td>
+          <td class="px-4 py-3 text-right font-mono text-white">{{ trip.distance_km | dec(1) }} {{ dist_unit() }}</td>
+          <td class="px-4 py-3 text-right font-mono text-slate-300">{{ trip.duration_min | dec(0) }} min</td>
+          <td class="px-4 py-3 text-right">
+            <span class="eff-pill {{ 'eff-good' if (trip.efficiency_wh_km or 0) <= 170 else ('eff-mid' if (trip.efficiency_wh_km or 0) <= 200 else 'eff-bad') }}">
+              {{ (trip.efficiency_wh_km or 0) | int }} <span class="unit">Wh/km</span>
+            </span>
+          </td>
+          <td class="px-4 py-3 text-slate-300">{{ trip.drive_mode or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card text-center py-12 text-slate-500">
+    <div class="text-4xl mb-3">🗺</div>
+    <p>{{ t('no_trips') }}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

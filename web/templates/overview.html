@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_overview') }} — Volvo EX30 Mate{% endblock %}
+{% block autorefresh %}30{% endblock %}{# own HTMX status poll every 30s #}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+  <!-- Status card (auto-refresh every 30s via HTMX) -->
+  <div class="card md:col-span-1"
+       id="status-card"
+       hx-get="api/status-card"
+       hx-trigger="load, every 30s"
+       hx-swap="innerHTML">
+    {% include "partials/status_card.html" %}
+  </div>
+
+  <!-- Vehicle hero -->
+  <div class="card flex flex-col md:col-span-1 lg:col-span-2 md:flex-row md:items-center md:gap-5 min-h-64">
+    <div id="hero-body" class="flex-1 flex flex-col"
+         hx-get="api/overview-hero" hx-trigger="every 30s" hx-swap="innerHTML">
+      {% include "partials/overview_hero.html" %}
+    </div>
+  </div>
+
+  <!-- Last charge -->
+  <div class="card md:col-span-1">
+    <h2 class="font-semibold text-white mb-3">{{ t('last_charge') }}</h2>
+    {% if last_charge %}
+    <div class="space-y-3">
+      {% set e = charge_energy(last_charge) %}
+      <div>
+        <div class="flex justify-between items-center">
+          <span class="stat-label">{{ t('energy') }}</span>
+          <span class="text-xl font-bold text-yellow-400">+{{ e.headline_kwh|dec(1) }} kWh
+            {% if e.headline == 'wallbox' %}<span class="text-[10px] font-normal text-blue-400" title="{{ t('wallbox_billed_help') }}">{{ t('wallbox_billed') }}</span>
+            {% elif e.headline == 'delivered' %}<span class="text-[10px] font-normal text-blue-400" title="{{ t('cal_kwh_delivered_help') }}">{{ t('cal_kwh_delivered') }}</span>
+            {% else %}<span class="text-[10px] font-normal text-slate-400" title="{{ t('energy_in_battery_help') }}">{{ t('energy_in_battery') }} (DC)</span>{% endif %}
+          </span>
+        </div>
+        {% if e.headline != 'battery' %}
+        <div class="text-right text-[10px] text-slate-400" title="{{ t('wallbox_billed_help') if e.headline == 'wallbox' else t('energy_in_battery_help') }}">
+          🔋 {{ e.battery_kwh|dec(1) }} kWh {{ t('energy_in_battery') }} (DC){% if e.wallbox_eff is not none %} · {{ t('efficiency') }} {{ e.wallbox_eff|dec(0) }}%{% endif %}
+        </div>
+        {% elif e.gross_kwh %}
+        <div class="text-right text-[10px] text-slate-400" title="{{ t('gross_kwh_help') }}">
+          🔌 {{ e.gross_kwh|dec(2) }} kWh {{ t('gross_kwh_short') }}{% if e.gross_eff is not none %} · {{ t('efficiency') }} {{ e.gross_eff|dec(0) }}% ({{ t('gross_kwh_lost') }} {{ e.gross_lost_kwh|dec(1) }} kWh){% endif %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="flex justify-between text-sm">
+        <span class="text-slate-400">{{ t('soc') }}</span>
+        {% if last_charge.start_soc is not none and last_charge.end_soc is not none %}
+        <span class="text-white">{{ last_charge.start_soc|dec(0) }}% → {{ last_charge.end_soc|dec(0) }}%</span>
+        {% else %}
+        <span class="text-white" data-tip="{{ t('soc_unknown_hint') }}" tabindex="0">—</span>
+        {% endif %}
+      </div>
+      <div class="flex justify-between text-sm">
+        <span class="text-slate-400">{{ t('duration') }}</span>
+        <span class="text-white">{{ fmt_dur(last_charge.duration_min) }}</span>
+      </div>
+      <div class="flex justify-between text-sm">
+        <span class="text-slate-400">{{ t('type') }}</span>
+        <span class="text-white {% if last_charge.charge_type == 'DC' %}text-yellow-400{% endif %}">
+          {{ last_charge.charge_type or 'AC' }}
+          {% if last_charge.max_power_kw %} · {{ last_charge.max_power_kw|dec(1) }} kW{% endif %}
+        </span>
+      </div>
+    </div>
+    {% else %}
+    <div class="text-center py-6 text-slate-500 text-sm">{{ t('no_charges') }}</div>
+    {% endif %}
+  </div>
+
+  <!-- Map -->
+  <div class="card md:col-span-1 lg:col-span-1 min-h-64">
+    <link rel="stylesheet" href="static/vendor/leaflet/leaflet.css"/>
+    <script src="static/vendor/leaflet/leaflet.js"></script>
+    <script src="static/trip-track.js"></script>
+    <div id="map-box"{% if last_position.lat is none %} style="display:none"{% endif %}>
+      <div class="stat-label mb-3">{{ t('last_position') }} <span id="map-when" class="normal-case whitespace-nowrap">{% if last_position.ago %}({{ last_position.ago }}){% endif %}</span></div>
+      <div id="map" class="w-full rounded-lg" style="height:280px"></div>
+    </div>
+    <div id="map-empty"{% if last_position.lat is not none %} style="display:none"{% endif %}>
+      <div class="flex items-center justify-center h-64 text-slate-500">
+        <div class="text-center">
+          <div class="text-4xl mb-2">🗺</div>
+          <div>{{ t('last_position') }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent trips -->
+  <div class="card md:col-span-2 lg:col-span-2">
+    <h2 class="font-semibold text-white mb-3">{{ t('recent_trips') }}</h2>
+    {% if recent_trips %}
+    <div class="space-y-2" data-recent-trips>
+      {% for trip in recent_trips %}{% with route_thumb = false, back = "." %}{% include "partials/trip_row.html" %}{% endwith %}{% endfor %}
+    </div>
+    {% include "partials/_address_credit.html" %}
+    {% else %}
+    <div class="text-center py-6 text-slate-500 text-sm">{{ t('no_trips') }}</div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+// Quick-command feedback: real state only
+var sending = false, sendingSince = 0;
+var READY_MSG = {{ t('cmd_ready'|tojson) }}, SENDING_MSG = {{ t('cmd_sending'|tojson) }};
+
+var CONFIRM = {open_trunk: 'close_trunk', close_trunk: 'open_trunk',
+               open_windows: 'close_windows', close_windows: 'open_windows'};
+var BUSY_MS = 10000;
+var busyUntil = 0, busyStart = 0, busySlot = null, pendingExpect = null;
+
+function slotOf(cmd) { return /trunk/.test(cmd) ? 'trunk' : /window/.test(cmd) ? 'windows' : cmd; }
+function isBusy()    { return Date.now() < busyUntil || pendingExpect != null; }
+function showSpin(slot, on) {
+  var el = slot && document.querySelector('#hero-body [data-slot="' + slot + '"] .hero-spin');
+  if (el) el.classList.toggle('spin-on', !!on);
+}
+function refreshHero() {
+  if (!document.getElementById('hero-body')) return;
+  if (sending) return;
+  htmx.ajax('GET', 'api/overview-hero', {target: '#hero-body', swap: 'innerHTML'});
+}
+function tick() {
+  if (sending && sendingSince && (Date.now() - sendingSince) > 60000) sending = false;
+  if (pendingExpect && document.querySelector('#hero-body [hx-post="api/command/' + pendingExpect + '"]')) pendingExpect = null;
+  if (pendingExpect && (Date.now() - busyStart) > 30000) pendingExpect = null;
+  var busy = sending || isBusy();
+  showSpin(busySlot, busy);
+  var grid = document.getElementById('hero-cmds');
+  if (grid) grid.classList.toggle('cmds-busy', busy);
+  if (!busy) busySlot = null;
+  var el = document.getElementById('cmd-ready');
+  if (el) {
+    el.textContent = busy ? SENDING_MSG : READY_MSG;
+    el.className = 'text-center text-[10px] mt-0.5 ' + (busy ? 'text-rose-400' : 'text-emerald-400');
+  }
+}
+setInterval(tick, 300);
+
+function tick() { ... }
+</script>
+{% endblock %}

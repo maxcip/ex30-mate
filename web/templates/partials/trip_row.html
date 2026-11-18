@@ -1,0 +1,22 @@
+<a href="trips" class="trip-row">
+  <div class="flex flex-col min-w-0 flex-1">
+    <div class="flex items-center gap-2 text-sm text-white">
+      <span class="truncate">{{ trip.start_address or t('start') }}</span>
+      <span class="text-slate-500">→</span>
+      <span class="truncate">{{ trip.end_address or t('destination') }}</span>
+    </div>
+    <div class="text-[11px] text-slate-400">
+      {{ trip.start_time }} · {{ trip.duration_min | dec(0) }} min
+      {% if trip.drive_mode %}· {{ trip.drive_mode }}{% endif %}
+    </div>
+  </div>
+  <div class="flex flex-col items-end gap-1 flex-shrink-0">
+    <div class="text-sm font-mono text-white">{{ trip.distance_km | dec(1) }} {{ dist_unit() }}</div>
+    <div class="text-[11px]">
+      <span class="text-slate-400">{{ trip.used_soc | dec(0) }}% · </span>
+      <span class="eff-pill {{ 'eff-good' if (trip.efficiency_wh_km or 0) <= 170 else ('eff-mid' if (trip.efficiency_wh_km or 0) <= 200 else 'eff-bad') }}">
+        {{ (trip.efficiency_wh_km or 0) | int }} <span class="unit">Wh/km</span>
+      </span>
+    </div>
+  </div>
+</a>

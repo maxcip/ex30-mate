@@ -1,0 +1,17 @@
+services:
+  volvo-ex30-mate:
+    build: .
+    container_name: volvo-ex30-mate
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - DATA_DIR=/data
+      - VOLVO_DEMO=1
+      # - VOLVO_API_KEY=your_volvo_api_key
+      # - VOLVO_VCC_API_KEY=your_vcc_api_key
+      # - VOLVO_VIN=YV1EX30...
+      # - HA_URL=http://homeassistant.local:8123
+      # - HA_TOKEN=your_long_lived_token
+    volumes:
+      - ./data:/data
