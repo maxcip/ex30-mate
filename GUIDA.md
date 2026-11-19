@@ -13,7 +13,7 @@ Assicurati di avere Docker e Docker Compose installati, quindi nella cartella `e
 ```bash
 docker compose up --build
 ```
-L'applicazione sarà disponibile all'indirizzo: **http://localhost:4000**
+L'applicazione sarà disponibile all'indirizzo: **http://192.168.10.137:4000**
 
 ### 2. Esecuzione Locale (Python)
 Installa le dipendenze e avvia il server uvicorn:
@@ -25,7 +25,7 @@ export VOLVO_DEMO=1
 export DATA_DIR=./data
 
 # Avvia il server
-python3 -m uvicorn web.main:app --host 0.0.0.0 --port 4000
+python3 -m uvicorn web.main:app --host 192.168.10.137 --port 4000
 ```
 
 ---

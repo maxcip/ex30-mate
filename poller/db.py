@@ -8,8 +8,16 @@ from pathlib import Path
 log = logging.getLogger("ex30.db")
 
 def get_data_dir() -> Path:
-    data_dir = Path(os.environ.get("DATA_DIR", "/data"))
-    data_dir.mkdir(parents=True, exist_ok=True)
+    env_dir = os.environ.get("DATA_DIR")
+    if env_dir:
+        data_dir = Path(env_dir)
+    else:
+        data_dir = Path("/data")
+    try:
+        data_dir.mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        data_dir = Path(__file__).resolve().parent.parent / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir
 
 DB_PATH = get_data_dir() / "volvo_mate.db"

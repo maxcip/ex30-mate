@@ -15,10 +15,10 @@
 
   <script>
   (function () {
-    var points = [
+    var trips = [
       {% for tr in trips %}
-      {% if tr.start_lat and tr.start_lon %}[{{ tr.start_lat }}, {{ tr.start_lon }}],{% endif %}
-      {% if tr.end_lat and tr.end_lon %}[{{ tr.end_lat }}, {{ tr.end_lon }}],{% endif %}
+      { id: {{ tr.id }}, start: [{% if tr.start_lat %}{{ tr.start_lat }}{% else %}null{% endif %}, {% if tr.start_lon %}{{ tr.start_lon }}{% else %}null{% endif %}],
+        end: [{% if tr.end_lat %}{{ tr.end_lat }}{% else %}null{% endif %}, {% if tr.end_lon %}{{ tr.end_lon }}{% else %}null{% endif %}] }{% if not loop.last %},{% endif %}
       {% endfor %}
     ];
     var hasPos = {% if status and status.latitude %}true{% else %}false{% endif %};
@@ -33,10 +33,32 @@
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    if (points.length) {
-      var line = L.polyline(points, { color: '#14b8a6', weight: 4, opacity: 0.85 }).addTo(map);
-      if (!hasPos) map.fitBounds(line.getBounds(), { padding: [24, 24] });
+    var bounds = null;
+    var drawn = 0;
+
+    function drawTrip(tr, coords) {
+      if (!coords || coords.length < 2) return;
+      var line = L.polyline(coords, { color: '#14b8a6', weight: 4, opacity: 0.85 }).addTo(map);
+      bounds = bounds ? line.getBounds().extend(bounds) : line.getBounds();
+      drawn++;
     }
+
+    function drawFallback(tr) {
+      var pts = [];
+      if (tr.start[0] != null) pts.push(tr.start);
+      if (tr.end[0] != null) pts.push(tr.end);
+      if (pts.length >= 2) drawTrip(tr, pts);
+    }
+
+    function fetchRoute(tr) {
+      if (!tr.id) return drawFallback(tr);
+      fetch('/api/trips/' + tr.id + '/route')
+        .then(function (r) { return r.json(); })
+        .then(function (d) { drawTrip(tr, d.coords); })
+        .catch(function () { drawFallback(tr); });
+    }
+
+    trips.forEach(fetchRoute);
 
     if (hasPos) {
       L.circleMarker(center, {
@@ -45,7 +67,20 @@
       }).addTo(map).bindPopup('Volvo EX30');
     }
 
-    setTimeout(function () { map.invalidateSize(); }, 200);
+    function fitBounds() {
+      if (bounds) map.fitBounds(bounds, { padding: [24, 24] });
+      else if (!hasPos) map.setView(center, 14);
+    }
+
+    // OSRM calls are async; wait for them before fitting.
+    var tries = 0;
+    var iv = setInterval(function () {
+      if (drawn >= trips.length || tries++ > 20) {
+        clearInterval(iv);
+        fitBounds();
+        map.invalidateSize();
+      }
+    }, 250);
   })();
   </script>
 </div>

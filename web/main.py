@@ -17,6 +17,8 @@ DEMO_MODE = os.environ.get("VOLVO_DEMO", "1") == "1"
 BASE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+from web.trip_routes import router as trip_routes_router
+app.include_router(trip_routes_router)
 
 
 def _t(key: str) -> str:
@@ -369,11 +371,3 @@ def api_refresh(request: Request):
     return _render(request, "partials/status_card.html", ctx)
 
 
-@app.get("/api/demo/status", response_class=JSONResponse)
-def api_demo_status():
-    return JSONResponse({"demo": DEMO_MODE, "restarting": False})
-
-
-@app.post("/api/demo/disable", response_class=JSONResponse)
-def api_demo_disable():
-    return JSONResponse({"ok": True, "restarting": False})
