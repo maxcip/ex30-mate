@@ -1,18 +1,25 @@
 """Background Poller for Volvo EX30."""
+import os
+import random
+import sys
 import time
 import logging
 from pathlib import Path
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from poller.db import get_db, init_db
 from poller.volvo_api import VolvoApiClient
+from poller.sessions import SessionTracker
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 log = logging.getLogger("ex30.poller")
 
+POLL_SECONDS = 30
+DEMO = os.environ.get("VOLVO_DEMO", "1") == "1"
+
+
 def seed_demo_data(conn):
-    """Seed initial sample trips and charges if database is empty."""
+    """Inserisce viaggi e ricariche di esempio se il database è vuoto."""
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM trips")
     if cursor.fetchone()[0] > 0:
@@ -21,7 +28,6 @@ def seed_demo_data(conn):
     log.info("Seeding initial Volvo EX30 demo trips and charges...")
     now = time.time()
 
-    # Seed trips
     for i in range(10):
         t_start = now - (i * 86400) - 3600
         t_end = t_start + 1800
@@ -36,7 +42,6 @@ def seed_demo_data(conn):
                     'Milano Centro', 'Bergamo Stazione', 45.4642, 9.1900, 45.6983, 9.6773, 'Commute test')
         """, (t_start, t_end, dist, dist, energy))
 
-    # Seed charges
     for i in range(5):
         t_start = now - (i * 172800) - 7200
         t_end = t_start + 5400
@@ -52,45 +57,58 @@ def seed_demo_data(conn):
     conn.commit()
     log.info("Demo data seeded successfully.")
 
-import random
+
+def save_status(status: dict):
+    conn = get_db()
+    try:
+        conn.execute("""
+            INSERT INTO positions (
+                vehicle_id, timestamp_ms, soc, range_km, odometer_km, speed_kmh, gear,
+                vehicle_state, charging_status, cable_connected, charging, charge_power_kw,
+                latitude, longitude, outside_temp, inside_temp, climate_target_temp,
+                battery_temp, is_locked, climate_on, trunk_open, doors_open, windows_open,
+                tire_pressure_fl, tire_pressure_fr, tire_pressure_rl, tire_pressure_rr
+            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            status["timestamp_ms"], status["soc"], status["range_km"], status["odometer_km"],
+            status["speed_kmh"], status["gear"], status["vehicle_state"], status["charging_status"],
+            status["cable_connected"], status["charging"], status["charge_power_kw"],
+            status["latitude"], status["longitude"], status["outside_temp"], status["inside_temp"],
+            status["climate_target_temp"], status["battery_temp"], status["is_locked"],
+            status["climate_on"], status["trunk_open"], status["doors_open"], status["windows_open"],
+            status["tire_pressure_fl"], status["tire_pressure_fr"],
+            status["tire_pressure_rl"], status["tire_pressure_rr"],
+        ))
+        conn.commit()
+    finally:
+        conn.close()
+
 
 def main_loop():
     init_db()
-    conn = get_db()
-    seed_demo_data(conn)
-    conn.close()
+
+    if DEMO:
+        conn = get_db()
+        try:
+            seed_demo_data(conn)
+        finally:
+            conn.close()
 
     client = VolvoApiClient()
+    tracker = None if DEMO else SessionTracker()
     log.info("Volvo EX30 Poller started.")
 
     while True:
         try:
             status = client.get_status()
             if status:
-                conn = get_db()
-                conn.execute("""
-                    INSERT INTO positions (
-                        vehicle_id, timestamp_ms, soc, range_km, odometer_km, speed_kmh, gear,
-                        vehicle_state, charging_status, cable_connected, charging, charge_power_kw,
-                        latitude, longitude, outside_temp, inside_temp, climate_target_temp,
-                        battery_temp, is_locked, climate_on, trunk_open, doors_open, windows_open,
-                        tire_pressure_fl, tire_pressure_fr, tire_pressure_rl, tire_pressure_rr
-                    ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    status["timestamp_ms"], status["soc"], status["range_km"], status["odometer_km"],
-                    status["speed_kmh"], status["gear"], status["vehicle_state"], status["charging_status"],
-                    status["cable_connected"], status["charging"], status["charge_power_kw"],
-                    status["latitude"], status["longitude"], status["outside_temp"], status["inside_temp"],
-                    status["climate_target_temp"], status["battery_temp"], status["is_locked"],
-                    status["climate_on"], status["trunk_open"], status["doors_open"], status["windows_open"],
-                    status["tire_pressure_fl"], status["tire_pressure_fr"], status["tire_pressure_rl"], status["tire_pressure_rr"]
-                ))
-                conn.commit()
-                conn.close()
+                save_status(status)
+                if tracker:
+                    tracker.update(status)
         except Exception as e:
             log.error(f"Poller error: {e}")
+        time.sleep(POLL_SECONDS)
 
-        time.sleep(30)
 
 if __name__ == "__main__":
     main_loop()

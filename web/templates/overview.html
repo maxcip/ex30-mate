@@ -76,7 +76,6 @@
   <div class="card md:col-span-1 lg:col-span-1 min-h-64">
     <link rel="stylesheet" href="static/vendor/leaflet/leaflet.css"/>
     <script src="static/vendor/leaflet/leaflet.js"></script>
-    <script src="static/trip-track.js"></script>
     <div id="map-box"{% if last_position.lat is none %} style="display:none"{% endif %}>
       <div class="stat-label mb-3">{{ t('last_position') }} <span id="map-when" class="normal-case whitespace-nowrap">{% if last_position.ago %}({{ last_position.ago }}){% endif %}</span></div>
       <div id="map" class="w-full rounded-lg" style="height:280px"></div>
@@ -109,7 +108,7 @@
 <script>
 // Quick-command feedback: real state only
 var sending = false, sendingSince = 0;
-var READY_MSG = {{ t('cmd_ready'|tojson) }}, SENDING_MSG = {{ t('cmd_sending'|tojson) }};
+var READY_MSG = {{ t('cmd_ready')|tojson }}, SENDING_MSG = {{ t('cmd_sending')|tojson }};
 
 var CONFIRM = {open_trunk: 'close_trunk', close_trunk: 'open_trunk',
                open_windows: 'close_windows', close_windows: 'open_windows'};
@@ -143,7 +142,26 @@ function tick() {
   }
 }
 setInterval(tick, 300);
+</script>
 
-function tick() { ... }
+<script>
+// MAP-INIT
+(function () {
+  var el = document.getElementById('map');
+  if (!el || typeof L === 'undefined') return;
+  var lat = {{ last_position.lat if last_position.lat is not none else 'null' }};
+  var lon = {{ last_position.lon if last_position.lon is not none else 'null' }};
+  if (lat === null || lon === null) return;
+  var map = L.map(el).setView([lat, lon], 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+  L.circleMarker([lat, lon], {
+    radius: 10, color: '#ffffff', weight: 2,
+    fillColor: '#14b8a6', fillOpacity: 0.95
+  }).addTo(map);
+  setTimeout(function () { map.invalidateSize(); }, 200);
+})();
 </script>
 {% endblock %}
