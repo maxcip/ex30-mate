@@ -2,7 +2,7 @@
 set -e
 
 echo "Starting Volvo EX30 Mate..."
-export DATA_DIR="${DATA_DIR:-/data}"
+export DATA_DIR="${DATA_DIR:-./data}"
 mkdir -p "$DATA_DIR"
 
 # Start poller background process

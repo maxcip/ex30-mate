@@ -95,9 +95,9 @@ def _state_label(s):
 
 
 def _state_color(s):
-    if not s:
+    if not s or s.get("ready") is None:
         return "text-slate-400"
-    if s.get("charging"):
+    return "text-emerald-400" if s.get("ready") else "text-amber-400"
         return "text-emerald-400"
     if s.get("ready"):
         return "text-sky-400"
@@ -138,6 +138,34 @@ templates.env.globals.update(
 def _render(request: Request, name: str, ctx: dict, **kwargs):
     return templates.TemplateResponse(request, name, ctx, **kwargs)
 
+<<<<<<< HEAD
+=======
+def _fmt_dur(minutes):
+    if not minutes:
+        return "—"
+    m = int(round(float(minutes)))
+    h, mm = divmod(m, 60)
+    return f"{h}h {mm}m" if h else f"{mm}m"
+
+def _soc_color(soc):
+    soc = float(soc or 0)
+    r = round(239 - (soc / 100) * 215)
+    g = round(130 + (soc / 100) * 125)
+    b = round(16 - (soc / 100) * 14)
+    return f"rgb({r},{g},{b})"
+
+def _state_color(s):
+    if not s or s.get("ready") is None:
+        return "text-slate-400"
+    return "text-emerald-400" if s.get("ready") else "text-amber-400"
+
+def _state_label(s):
+    if not s:
+        return "—"
+    if s.get("ready") is None:
+        return "—"
+    return "Pronto" if s.get("ready") else "Spento"
+>>>>>>> a9fe4e7 (Configurazione rete per container Proxmox e fix errore 500)
 
 def _ctx(request: Request, page: str) -> dict:
     vehicle, vehicles = db_reader.get_vehicle()
@@ -368,6 +396,7 @@ def api_refresh(request: Request):
     ctx["last_position"] = _last_position(ctx["status"])
     return _render(request, "partials/status_card.html", ctx)
 
+<<<<<<< HEAD
 
 @app.get("/api/demo/status", response_class=JSONResponse)
 def api_demo_status():
@@ -377,3 +406,5 @@ def api_demo_status():
 @app.post("/api/demo/disable", response_class=JSONResponse)
 def api_demo_disable():
     return JSONResponse({"ok": True, "restarting": False})
+=======
+>>>>>>> a9fe4e7 (Configurazione rete per container Proxmox e fix errore 500)
