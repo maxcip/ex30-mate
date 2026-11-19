@@ -11,13 +11,13 @@ from web import db_reader
 from web import i18n
 from web import units
 from poller.volvo_api import VolvoApiClient
+from web.trip_routes import router as trip_routes_router
 
 app = FastAPI(title="Volvo EX30 Mate")
 DEMO_MODE = os.environ.get("VOLVO_DEMO", "1") == "1"
 BASE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-from web.trip_routes import router as trip_routes_router
 app.include_router(trip_routes_router)
 
 
@@ -97,13 +97,9 @@ def _state_label(s):
 
 
 def _state_color(s):
-    if not s:
+    if not s or s.get("ready") is None:
         return "text-slate-400"
-    if s.get("charging"):
-        return "text-emerald-400"
-    if s.get("ready"):
-        return "text-sky-400"
-    return "text-slate-400"
+    return "text-emerald-400" if s.get("ready") else "text-amber-400"
 
 
 templates.env.filters["nice"] = _nice
@@ -371,3 +367,11 @@ def api_refresh(request: Request):
     return _render(request, "partials/status_card.html", ctx)
 
 
+@app.get("/api/demo/status", response_class=JSONResponse)
+def api_demo_status():
+    return JSONResponse({"demo": DEMO_MODE, "restarting": False})
+
+
+@app.post("/api/demo/disable", response_class=JSONResponse)
+def api_demo_disable():
+    return JSONResponse({"ok": True, "restarting": False})
