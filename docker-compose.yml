@@ -7,11 +7,17 @@ services:
       - "4000:4000"
     environment:
       - DATA_DIR=/data
-      - VOLVO_DEMO=1
-      # - VOLVO_API_KEY=your_volvo_api_key
-      # - VOLVO_VCC_API_KEY=your_vcc_api_key
-      # - VOLVO_VIN=YV1EX30...
-      # - HA_URL=http://homeassistant.local:8123
-      # - HA_TOKEN=your_long_lived_token
+      - VOLVO_DEMO=${VOLVO_DEMO:-1}
+      - VOLVO_VIN=${VOLVO_VIN:-}
+      - HA_URL=${HA_URL:-}
+      - HA_TOKEN=${HA_TOKEN:-}
+      - HA_PREFIX=${HA_PREFIX:-volvo_ex30}
+      - HA_SOC_ENTITY=${HA_SOC_ENTITY:-sensor.volvo_ex30_battery}
+      - BATTERY_KWH=${BATTERY_KWH:-51}
+      - HOME_PRICE_KWH=${HOME_PRICE_KWH:-0.37}
+      - PUBLIC_PRICE_KWH=${PUBLIC_PRICE_KWH:-0.65}
+      - HOME_LAT=${HOME_LAT:-}
+      - HOME_LON=${HOME_LON:-}
+      - HOME_RADIUS_M=${HOME_RADIUS_M:-200}
     volumes:
       - ./data:/data
