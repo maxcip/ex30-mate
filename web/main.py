@@ -111,7 +111,10 @@ templates.env.filters["temp"] = units.temp
 templates.env.filters["int"] = _int
 templates.env.filters["string"] = _string
 
+from web.vehicle_indicators import indicators
+
 templates.env.globals.update(
+    vehicle_indicators=indicators,
     t=_t,
     dist_unit=units.dist_unit,
     speed_unit=units.speed_unit,
