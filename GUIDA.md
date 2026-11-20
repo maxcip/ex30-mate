@@ -1,81 +1,138 @@
-# Guida all'Utilizzo — Volvo EX30 Mate
+# Guida all'utilizzo | Volvo EX30 Mate
 
-**Volvo EX30 Mate** è un'applicazione web completa per il monitoraggio in tempo reale, lo storico dei viaggi, la gestione delle ricariche, i costi e il controllo remoto della tua Volvo EX30 (con supporto completo alla modalità DEMO per testare l'app senza un veicolo connesso).
+Volvo EX30 Mate è un'applicazione web per il monitoraggio del veicolo, lo storico dei viaggi, le ricariche, i costi e la posizione.
 
----
+## Avvio rapido
 
-## 🚀 Avvio Rapido
+### Docker Compose
 
-Puoi avviare l'applicazione in due modi:
+Nella cartella del progetto:
 
-### 1. Tramite Docker Compose (Consigliato)
-Assicurati di avere Docker e Docker Compose installati, quindi nella cartella `ex30-mate` esegui:
 ```bash
 docker compose up --build
 ```
-L'applicazione sarà disponibile all'indirizzo: **http://192.168.10.137:4000**
 
-### 2. Esecuzione Locale (Python)
-Installa le dipendenze e avvia il server uvicorn:
-```bash
-cd ex30-mate
-pip install -r requirements.txt python-multipart
-# Imposta la modalità demo (opzionale se non hai chiavi API Volvo)
-export VOLVO_DEMO=1
-export DATA_DIR=./data
+L'applicazione è disponibile su:
 
-# Avvia il server
-python3 -m uvicorn web.main:app --host 192.168.10.137 --port 4000
+```text
+http://IP_DEL_SERVER:4000
 ```
 
----
+### Aggiornamento su Proxmox
 
-## 🎛 Funzionalità Principali (Pagine Web)
+Se il container è già installato con Docker Compose:
 
-1. **Panoramica (`/`)**: 
-   - Stato live della batteria (SoC %), autonomia residua, chilometraggio, temperature (abitacolo, batteria, esterno).
-   - Pulsanti di controllo rapido (Blocca/Sblocca porte, Avvia/Ferma ricarica).
-   - Widget dell'ultima ricarica e ultimi viaggi effettuati con mappa interattiva.
-   
-2. **Viaggi (`/trips`)**:
-   - Storico completo di tutti i percorsi registrati con data, ora, indirizzi di partenza/arrivo, durata, distanza e consumo energetico specifico (Wh/km).
+```bash
+cd /percorso/di/ex30-mate
 
-3. **Mappa (`/map`)**:
-   - Visualizzazione geografica interattiva (Leaflet + OpenStreetMap) con tracciato dei percorsi e ultima posizione nota del veicolo.
+git fetch origin
+git checkout update-trip-maps-vehicle
+git pull origin update-trip-maps-vehicle
 
-4. **Ricariche (`/charges`)**:
-   - Elenco dettagliato delle ricariche AC (Wallbox) e DC (colonnine rapide), con energia immessa, durata, potenza massima e costo stimato o reale.
+docker compose build --no-cache
+docker compose up -d
+```
 
-5. **Costi (`/costs`)**:
-   - Analisi finanziaria delle spese di ricarica, riepilogo per tipologia (AC vs DC) e grafico a barre dei costi per sessione.
+Verifica l'avvio:
 
-6. **Statistiche (`/statistics`)**:
-   - Grafici avanzati (ApexCharts) sull'andamento della batteria nel tempo, consumo nel corso dei viaggi e distribuzione dell'efficienza energetica.
+```bash
+docker compose ps
+docker compose logs -f --tail 100 volvo-ex30-mate
+```
 
-7. **Batteria (`/battery`)**:
-   - Monitoraggio approfondito della salute della batteria, temperature e curva di potenza durante la ricarica.
+Il volume `./data:/data` mantiene il database, la cronologia dei viaggi e le impostazioni. La ricostruzione dell'immagine non cancella questi dati.
 
-8. **Comandi (`/commands`)**:
-   - Pannello di controllo remoto per inviare comandi al veicolo (clacson, fari, precondizionamento clima, apertura bagagliaio).
+## Pagine disponibili
 
-9. **Navigazione (`/navigation`)**:
-   - Invio rapido di destinazioni di navigazione direttamente al sistema di bordo dell'auto.
+### Panoramica
 
-10. **Impostazioni (`/settings`)**:
-    - Cambio lingua (Italiano / English), valuta (EUR, USD, GBP, SEK) e configurazione generale.
+La Vista principale mostra:
 
----
+- Stato della batteria, autonomia residua, chilometraggio e temperature.
+- Dati principali del veicolo, inclusi autonomia, efficienza, energia consumata e costo totale.
+- Ultima ricarica.
+- Ultima posizione su mappa.
+- Viaggi recenti.
 
-## ⚙️ Configurazione con Veicolo Reale (API Volvo)
+I comandi rapidi di blocco, sblocco, avvio e arresto ricarica non sono più presenti nella Vista principale.
 
-Per connettere l'app alla tua Volvo EX30 reale anziché usare la modalità DEMO:
+### Viaggi
 
-1. Registrati sul portale **Volvo Developer** e ottieni le tue chiavi API (`VOLVO_API_KEY` e `VOLVO_VCC_API_KEY`).
-2. Configura le variabili d'ambiente nel file `docker-compose.yml` o nel tuo ambiente di esecuzione:
-   ```env
-   VOLVO_DEMO=0
-   VOLVO_API_KEY=tua_api_key
-   VOLVO_VCC_API_KEY=tua_vcc_api_key
-   VOLVO_VIN=Tuo_VIN_Veicolo
-   ```
-3. Il poller in background (`poller/main.py`) interrogherà periodicamente le API ufficiali Volvo salvando la telemetria nel database SQLite (`data/volvo_mate.db`).
+La pagina Viaggi mostra ogni viaggio in una card con:
+
+- Data e ora.
+- Indirizzo di partenza e destinazione.
+- Distanza, durata ed efficienza.
+- Modalità di guida.
+- Mini mappa cliccabile del percorso.
+
+Il click sulla mini mappa apre la mappa completa del viaggio, con il tracciato e l'adattamento automatico della vista.
+
+### Mappa
+
+La pagina Mappa mostra l'ultima posizione nota del veicolo e i percorsi dei viaggi.
+
+### Ricariche
+
+La pagina Ricariche mostra le sessioni AC e DC, con energia, durata, potenza massima e costi.
+
+### Costi
+
+La pagina Costi mostra le spese di ricarica, il confronto tra AC e DC e i costi per sessione.
+
+### Statistiche
+
+La pagina Statistiche mostra grafici su batteria, consumi, efficienza e viaggi.
+
+### Batteria
+
+La pagina Batteria mostra salute della batteria, temperature e curva di potenza durante la ricarica.
+
+### Veicolo
+
+La pagina Veicolo mostra:
+
+- VIN.
+- Capacità batteria.
+- Colore: Cloud Blue.
+- Anno: 2026.
+- Modello.
+
+La sezione Current Status mostra:
+
+- Batteria.
+- Autonomia.
+- Chilometraggio.
+
+Velocità, marcia e stato non sono più mostrati.
+
+### Impostazioni
+
+La pagina Impostazioni consente di configurare lingua, valuta, Home Assistant, posizione di casa e altre opzioni.
+
+## Configurazione con veicolo reale
+
+Per connettere l'app alla Volvo EX30 reale:
+
+1. Registrati sul portale Volvo Developer.
+2. Ottieni `VOLVO_API_KEY` e `VOLVO_VCC_API_KEY`.
+3. Configura le variabili nel file `docker-compose.yml` oppure nel file `.env`:
+
+```env
+VOLVO_DEMO=0
+VOLVO_API_KEY=tua_api_key
+VOLVO_VCC_API_KEY=tua_vcc_api_key
+VOLVO_VIN=Tuo_VIN_Veicolo
+```
+
+Il poller interroga periodicamente le API Volvo e salva i dati nel database SQLite in `data/volvo_mate.db`.
+
+## Modalità demo
+
+Per testare l'app senza un veicolo connesso:
+
+```env
+VOLVO_DEMO=1
+```
+
+La modalità demo genera dati di esempio e non invia comandi reali al veicolo.
