@@ -135,7 +135,6 @@
 </head>
 <body class="h-full bg-slate-900 text-slate-100 flex flex-col md:flex-row" data-autorefresh="{% block autorefresh %}30{% endblock %}">
 
-  <!-- Mobile Header -->
   <header class="md:hidden flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-slate-700 sticky top-0 z-[1001]">
     <div class="flex items-center gap-2">
       <a href="." aria-label="{{ t('nav_overview') }}"
@@ -161,10 +160,8 @@
     </div>
   </header>
 
-  <!-- Sidebar Overlay -->
   <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-[1002] hidden md:hidden"></div>
 
-  <!-- Sidebar -->
   <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-slate-800 border-r border-slate-700 flex flex-col h-screen z-[1003] transform -translate-x-full transition-transform duration-300 md:relative md:translate-x-0 md:w-56 md:flex-shrink-0 md:sticky md:top-0">
     <div class="hidden md:block px-5 py-5 border-b border-slate-700">
       <div class="flex items-center gap-2">
@@ -205,18 +202,6 @@
       <a href="battery"     class="nav-link {% if page=='battery'     %}active{% endif %}">
         <span class="text-lg">🩺</span> {{ t('nav_battery') }}
       </a>
-      <a href="maintenance" class="nav-link {% if page=='maintenance' %}active{% endif %}">
-        <span class="text-lg">🧰</span> {{ t('nav_maintenance') }}
-      </a>
-      <a href="commands"    class="nav-link {% if page=='commands'    %}active{% endif %}">
-        <span class="text-lg">🎮</span> {{ t('nav_commands') }}
-      </a>
-      <a href="scheduling"  class="nav-link {% if page=='scheduling'  %}active{% endif %}">
-        <span class="text-lg">📅</span> {{ t('nav_scheduling') }}
-      </a>
-      <a href="navigation"  class="nav-link {% if page=='navigation'  %}active{% endif %}">
-        <span class="text-lg">🧭</span> {{ t('nav_navigation') }}
-      </a>
       <a href="vehicle"     class="nav-link {% if page=='vehicle'     %}active{% endif %}">
         <span class="text-lg">🚗</span> {{ t('nav_vehicle') }}
       </a>
@@ -245,7 +230,6 @@
     </div>
   </aside>
 
-  <!-- Main -->
   <main class="flex-1 overflow-y-auto">
     {% if auth_unprotected and not auth_dismissed and not demo %}
     <div id="auth-bar" style="position:sticky;top:0;z-index:1000;background:#7f1d1d;color:#fee2e2;
@@ -280,7 +264,7 @@
       <button type="button" hx-post="api/settings/dismiss-beta-notice"
               hx-target="#beta-bar" hx-swap="delete"
               style="background:transparent;color:#e9d5ff;border:1px solid #a78bfa;border-radius:8px;
-                     padding:5px 10px;font-size:12px;cursor:parameter">{{ t('btn_close') }}</button>
+                     padding:5px 10px;font-size:12px;cursor:pointer">{{ t('btn_close') }}</button>
     </div>
     {% endif %}
     {% if unconfigured_cars %}
@@ -294,7 +278,6 @@
                 font-weight:700;text-decoration:none;white-space:nowrap">{{ t('unconfigured_banner_btn') }}</a>
     </div>
     {% endif %}
-    {# The pages' column. The Map empties it: on a wide screen the map is the page (D#438). #}
     <div class="{% block content_width %}max-w-6xl{% endblock %} mx-auto px-4 sm:px-6 py-6">
       {% block content %}{% endblock %}
     </div>
@@ -454,9 +437,6 @@
       hold = null;
     });
     document.addEventListener('pointercancel', function (e) {
-      if (hold && e.pointerId === hold.id) letGo();
-    });
-    document.addEventListener('contextmenu', function (e) {
       if (hold && rangeCell(e)) e.preventDefault();
     });
   })();
@@ -480,7 +460,6 @@
   })();
   </script>
 
-  <!-- ── Ask before doing something ── -->
   <div id="mate-confirm" role="dialog" aria-modal="true" aria-labelledby="mate-confirm-text"
        style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(2,6,23,.72);
               align-items:center;justify-content:center;padding:16px">
@@ -562,8 +541,8 @@
         if (!rc) { location.reload(); return; }
         htmx.ajax(rc.verb, rc.path, {
           source: d.elt, target: tgt, swap: tgt.getAttribute('hx-swap') || 'innerHTML'
-        }).catch(function () {});   // rejected when the retry is aborted, times out or fails to send: every one of
-      });                           // those is an htmx event the listeners above already act on
+        }).catch(function () {});
+      });
       box.lmFor = tgt;
       box.appendChild(msg);
       box.appendChild(btn);
@@ -585,37 +564,7 @@
   })();
   </script>
 
-  <!-- ── Tooltip for the whole app ── -->
-<div id="mate-tip" class="hidden fixed z-[1100] pointer-events-none rounded-lg border border-slate-600 bg-slate-900 px-2.5 py-1.5 text-[11px] leading-snug text-slate-200 shadow-lg max-w-[min(20rem,90vw)] whitespace-pre-line" role="tooltip"></script>
-<script>
-  (function () {
-    var tip = document.getElementById('mate-tip'), cur = null;
-    function place(x, y) {
-      var w = tip.offsetWidth, h = tip.offsetHeight;
-      var l = Math.min(x + 12, window.innerWidth - w - 8), t = y + 16;
-      if (t + h > window.innerHeight - 8) t = y - h - 10;
-      tip.style.left = Math.max(8, l) + 'px'; tip.style.top = Math.max(8, t) + 'px';
-    }
-    function show(el, x, y) { cur = el; tip.textContent = el.getAttribute('data-tip'); tip.classList.remove('hidden'); place(x, y); }
-    function hide() { cur = null; tip.classList.add('hidden'); }
-    function at(e) { return e.target && e.target.closest ? e.target.closest('[data-tip]') : null; }
-    document.addEventListener('pointermove', function (e) {
-      if (e.pointerType !== 'mouse') return;
-      var el = at(e); if (!el) return hide();
-      if (el !== cur) show(el, e.clientX, e.clientY); else place(e.clientX, e.clientY);
-    });
-    document.addEventListener('pointerdown', function (e) {
-      var el = at(e); if (!el) return hide();
-      if (el === cur && !tip.classList.contains('hidden')) return hide();
-      show(el, e.clientX, e.clientY);
-    });
-    document.addEventListener('focusin', function (e) {
-      var el = at(e); if (!el) return hide();
-      var r = el.getBoundingClientRect(); show(el, r.left, r.bottom);
-    });
-    document.addEventListener('focusout', hide);
-    document.addEventListener('scroll', hide, true);
-  })();
-</script>
+  <div id="mate-tip" class="hidden fixed z-[1100] pointer-events-none rounded-lg border border-slate-600 bg-slate-900 px-2.5 py-1.5 text-[11px] leading-snug text-slate-200 shadow-lg max-w-[min(20rem,90vw)] whitespace-pre-line"></div>
+  <script src="static/app.js"></script>
 </body>
 </html>

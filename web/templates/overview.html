@@ -5,7 +5,6 @@
 {% block content %}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-  <!-- Status card (auto-refresh every 30s via HTMX) -->
   <div class="card md:col-span-1"
        id="status-card"
        hx-get="api/status-card"
@@ -14,7 +13,6 @@
     {% include "partials/status_card.html" %}
   </div>
 
-  <!-- Vehicle hero -->
   <div class="card flex flex-col md:col-span-1 lg:col-span-2 md:flex-row md:items-center md:gap-5 min-h-64">
     <div id="hero-body" class="flex-1 flex flex-col"
          hx-get="api/overview-hero" hx-trigger="every 30s" hx-swap="innerHTML">
@@ -22,7 +20,6 @@
     </div>
   </div>
 
-  <!-- Last charge -->
   <div class="card md:col-span-1">
     <h2 class="font-semibold text-white mb-3">{{ t('last_charge') }}</h2>
     {% if last_charge %}
@@ -72,7 +69,6 @@
     {% endif %}
   </div>
 
-  <!-- Map -->
   <div class="card md:col-span-1 lg:col-span-1 min-h-64">
     <link rel="stylesheet" href="static/vendor/leaflet/leaflet.css"/>
     <script src="static/vendor/leaflet/leaflet.js"></script>
@@ -90,7 +86,6 @@
     </div>
   </div>
 
-  <!-- Recent trips -->
   <div class="card md:col-span-2 lg:col-span-2">
     <h2 class="font-semibold text-white mb-3">{{ t('recent_trips') }}</h2>
     {% if recent_trips %}
@@ -106,46 +101,6 @@
 </div>
 
 <script>
-// Quick-command feedback: real state only
-var sending = false, sendingSince = 0;
-var READY_MSG = {{ t('cmd_ready')|tojson }}, SENDING_MSG = {{ t('cmd_sending')|tojson }};
-
-var CONFIRM = {open_trunk: 'close_trunk', close_trunk: 'open_trunk',
-               open_windows: 'close_windows', close_windows: 'open_windows'};
-var BUSY_MS = 10000;
-var busyUntil = 0, busyStart = 0, busySlot = null, pendingExpect = null;
-
-function slotOf(cmd) { return /trunk/.test(cmd) ? 'trunk' : /window/.test(cmd) ? 'windows' : cmd; }
-function isBusy()    { return Date.now() < busyUntil || pendingExpect != null; }
-function showSpin(slot, on) {
-  var el = slot && document.querySelector('#hero-body [data-slot="' + slot + '"] .hero-spin');
-  if (el) el.classList.toggle('spin-on', !!on);
-}
-function refreshHero() {
-  if (!document.getElementById('hero-body')) return;
-  if (sending) return;
-  htmx.ajax('GET', 'api/overview-hero', {target: '#hero-body', swap: 'innerHTML'});
-}
-function tick() {
-  if (sending && sendingSince && (Date.now() - sendingSince) > 60000) sending = false;
-  if (pendingExpect && document.querySelector('#hero-body [hx-post="api/command/' + pendingExpect + '"]')) pendingExpect = null;
-  if (pendingExpect && (Date.now() - busyStart) > 30000) pendingExpect = null;
-  var busy = sending || isBusy();
-  showSpin(busySlot, busy);
-  var grid = document.getElementById('hero-cmds');
-  if (grid) grid.classList.toggle('cmds-busy', busy);
-  if (!busy) busySlot = null;
-  var el = document.getElementById('cmd-ready');
-  if (el) {
-    el.textContent = busy ? SENDING_MSG : READY_MSG;
-    el.className = 'text-center text-[10px] mt-0.5 ' + (busy ? 'text-rose-400' : 'text-emerald-400');
-  }
-}
-setInterval(tick, 300);
-</script>
-
-<script>
-// MAP-INIT
 (function () {
   var el = document.getElementById('map');
   if (!el || typeof L === 'undefined') return;
