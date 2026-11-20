@@ -1,37 +1,30 @@
-{% extends "base.html" %}
-{% block title %}{{ t('nav_vehicle') }} — Volvo EX30 Mate{% endblock %}
+{% extends 'base.html' %}
+{% block title %}{{ t('nav_vehicle') }} | Volvo EX30 Mate{% endblock %}
 {% block content %}
 {% set v = vehicle_detail or vehicle %}
-<div class="space-y-6">
-  <div>
-    <h1 class="text-2xl font-bold text-white">{{ t('nav_vehicle') }}</h1>
-  </div>
-
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <div class="card">
-      <h2 class="text-lg font-semibold text-white mb-4">{{ t('vehicle_title') }}</h2>
-      <dl class="space-y-3 text-sm">
-        <div class="flex justify-between"><dt class="text-slate-400">{{ t('vin') }}</dt><dd class="font-mono text-white">{{ v.vin or '—' }}</dd></div>
-        <div class="flex justify-between"><dt class="text-slate-400">{{ t('battery_capacity') }}</dt><dd class="font-mono text-white">{{ (v.battery_capacity_kwh or 0) | dec(1) }} kWh</dd></div>
-        <div class="flex justify-between"><dt class="text-slate-400">{{ t('color') }}</dt><dd class="text-white">{{ v.color or '—' }}</dd></div>
-        <div class="flex justify-between"><dt class="text-slate-400">{{ t('year') }}</dt><dd class="text-white">{{ v.year or '—' }}</dd></div>
-        <div class="flex justify-between"><dt class="text-slate-400">{{ t('model') }}</dt><dd class="text-white">{{ v.model_variant or '—' }}</dd></div>
+<div class='space-y-6'>
+  <h1 class='text-2xl font-bold text-white'>{{ t('nav_vehicle') }}</h1>
+  <div class='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+    <div class='card'>
+      <h2 class='text-lg font-semibold text-white mb-4'>{{ t('vehicle_title') }}</h2>
+      <dl class='space-y-3 text-sm'>
+        <div class='flex justify-between'><dt class='text-slate-400'>{{ t('vin') }}</dt><dd class='font-mono text-white'>{{ v.vin or '—' }}</dd></div>
+        <div class='flex justify-between'><dt class='text-slate-400'>{{ t('battery_capacity') }}</dt><dd class='font-mono text-white'>{{ (v.battery_capacity_kwh or 0) | dec(1) }} kWh</dd></div>
+        <div class='flex justify-between'><dt class='text-slate-400'>{{ t('color') }}</dt><dd class='text-white'>Cloud Blue</dd></div>
+        <div class='flex justify-between'><dt class='text-slate-400'>{{ t('year') }}</dt><dd class='text-white'>2026</dd></div>
+        <div class='flex justify-between'><dt class='text-slate-400'>{{ t('model') }}</dt><dd class='text-white'>{{ v.model_variant or '—' }}</dd></div>
       </dl>
     </div>
-
-    <div class="card">
-      <h2 class="text-lg font-semibold text-white mb-4">{{ t('current_status') }}</h2>
+    <div class='card'>
+      <h2 class='text-lg font-semibold text-white mb-4'>{{ t('current_status') }}</h2>
       {% if status %}
-      <dl class="space-y-3 text-sm">
-        <div class="flex justify-between"><dt class="text-slate-400">{{ t('battery') }}</dt><dd class="font-mono text-white">{{ status.soc | dec(1) }}%</dd></div>
-        <div class="flex justify-between"><dt class="text-slate-400">{{ t('range') }}</dt><dd class="font-mono text-white">{{ dist_val(status.range_km) | int }} {{ dist_unit() }}</dd></div>
-        <div class="flex justify-between"><dt class="text-slate-400">{{ t('odometer') }}</dt><dd class="font-mono text-white">{{ (status.odometer_km or 0) | dist(0) }}</dd></div>
-        <div class="flex justify-between"><dt class="text-slate-400">{{ t('speed') }}</dt><dd class="font-mono text-white">{{ speed_val(status.speed_kmh) | int }} {{ speed_unit() }}</dd></div>
-        <div class="flex justify-between"><dt class="text-slate-400">{{ t('gear') }}</dt><dd class="font-mono text-white">{{ status.gear or 'P' }}</dd></div>
-        <div class="flex justify-between"><dt class="text-slate-400">{{ t('state') }}</dt><dd class="text-white">{{ state_label(status) }}</dd></div>
+      <dl class='space-y-3 text-sm'>
+        <div class='flex justify-between'><dt class='text-slate-400'>{{ t('battery') }}</dt><dd class='font-mono text-white'>{{ status.soc | dec(1) }}%</dd></div>
+        <div class='flex justify-between'><dt class='text-slate-400'>{{ t('range') }}</dt><dd class='font-mono text-white'>{{ dist_val(status.range_km) | int }} {{ dist_unit() }}</dd></div>
+        <div class='flex justify-between'><dt class='text-slate-400'>{{ t('odometer') }}</dt><dd class='font-mono text-white'>{{ (status.odometer_km or 0) | dist(0) }}</dd></div>
       </dl>
       {% else %}
-      <div class="text-center py-8 text-slate-500">{{ t('waiting_data') }}</div>
+      <div class='text-center py-8 text-slate-500'>{{ t('waiting_data') }}</div>
       {% endif %}
     </div>
   </div>

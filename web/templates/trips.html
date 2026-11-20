@@ -1,50 +1,86 @@
-{% extends "base.html" %}
-{% block title %}{{ t('nav_trips') }} — Volvo EX30 Mate{% endblock %}
+{% extends 'base.html' %}
+{% block title %}{{ t('nav_trips') }} | Volvo EX30 Mate{% endblock %}
+{% block autorefresh %}0{% endblock %}
 {% block content %}
-<div class="space-y-6">
-  <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-bold text-white">{{ t('nav_trips') }}</h1>
-    <span class="text-sm text-slate-400">{{ trips|length }} {{ t('trips_count') }}</span>
-  </div>
-
-  {% if trips %}
-  <div class="card overflow-hidden">
-    <table class="w-full text-left text-sm">
-      <thead class="text-slate-500 border-b border-slate-700">
-        <tr>
-          <th class="px-4 py-3 font-medium">{{ t('date') }}</th>
-          <th class="px-4 py-3 font-medium">{{ t('start') }}</th>
-          <th class="px-4 py-3 font-medium">{{ t('destination') }}</th>
-          <th class="px-4 py-3 font-medium text-right">{{ t('distance') }}</th>
-          <th class="px-4 py-3 font-medium text-right">{{ t('duration') }}</th>
-          <th class="px-4 py-3 font-medium text-right">{{ t('efficiency') }}</th>
-          <th class="px-4 py-3 font-medium">{{ t('drive_mode') }}</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-800">
-        {% for trip in trips %}
-        <tr class="hover:bg-slate-800/40">
-          <td class="px-4 py-3 text-slate-300 whitespace-nowrap">{{ trip.start_time }}</td>
-          <td class="px-4 py-3 text-slate-300 truncate max-w-[14rem]">{{ trip.start_address or '—' }}</td>
-          <td class="px-4 py-3 text-slate-300 truncate max-w-[14rem]">{{ trip.end_address or '—' }}</td>
-          <td class="px-4 py-3 text-right font-mono text-white">{{ trip.distance_km | dec(1) }} {{ dist_unit() }}</td>
-          <td class="px-4 py-3 text-right font-mono text-slate-300">{{ trip.duration_min | dec(0) }} min</td>
-          <td class="px-4 py-3 text-right">
-            <span class="eff-pill {{ 'eff-good' if (trip.efficiency_wh_km or 0) <= 170 else ('eff-mid' if (trip.efficiency_wh_km or 0) <= 200 else 'eff-bad') }}">
-              {{ (trip.efficiency_wh_km or 0) | int }} <span class="unit">Wh/km</span>
-            </span>
-          </td>
-          <td class="px-4 py-3 text-slate-300">{{ trip.drive_mode or '—' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+<link rel='stylesheet' href='static/vendor/leaflet/leaflet.css'>
+<script src='static/vendor/leaflet/leaflet.js'></script>
+<div class='space-y-4'>
+  <div class='flex justify-between items-center'><h1 class='text-2xl font-bold text-white'>{{ t('nav_trips') }}</h1><span class='text-sm text-slate-400'>{{ trips|length }} {{ t('trips_count') }}</span></div>
+  {% for trip in trips %}
+  <article class='card flex flex-wrap items-center gap-4'>
+    <div class='flex-1 min-w-[14rem]'>
+      <h2 class='font-semibold text-white'>{{ trip.start_time }}</h2>
+      <dl class='text-sm text-slate-300 space-y-1 mt-2'>
+        <div><dt class='inline'>{{ t('start') }}:</dt> <dd class='inline'>{{ trip.start_address or '—' }}</dd></div>
+        <div><dt class='inline'>{{ t('destination') }}:</dt> <dd class='inline'>{{ trip.end_address or '—' }}</dd></div>
+        <div><dt class='inline'>{{ t('distance') }}:</dt> <dd class='inline'>{{ trip.distance_km | dec(1) }} {{ dist_unit() }}</dd></div>
+        <div><dt class='inline'>{{ t('duration') }}:</dt> <dd class='inline'>{{ trip.duration_min | dec(0) }} min</dd></div>
+        <div><dt class='inline'>{{ t('efficiency') }}:</dt> <dd class='inline'>{{ (trip.efficiency_wh_km or 0) | int }} Wh/km</dd></div>
+        <div><dt class='inline'>{{ t('drive_mode') }}:</dt> <dd class='inline'>{{ trip.drive_mode or '—' }}</dd></div>
+      </dl>
+    </div>
+    <button type='button' data-trip='{{ trip.id }}' data-time='{{ trip.start_time }}' disabled class='rounded border border-slate-700 bg-slate-900 text-sm text-slate-300 p-2 disabled:cursor-default' aria-label='{{ t("nav_map") }}: {{ trip.start_time }}'>
+      <svg viewBox='0 0 160 90' width='160' height='90' aria-hidden='true' class='hidden'><polyline fill='none' stroke='#2dd4bf' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/></svg>
+      <span>{{ t('nav_map') }}…</span>
+    </button>
+  </article>
   {% else %}
-  <div class="card text-center py-12 text-slate-500">
-    <div class="text-4xl mb-3">🗺</div>
-    <p>{{ t('no_trips') }}</p>
-  </div>
-  {% endif %}
+  <p class='card text-center py-12 text-slate-500'>{{ t('no_trips') }}</p>
+  {% endfor %}
 </div>
+<dialog id='trip-map-dialog' aria-labelledby='trip-map-title' class='rounded-lg bg-slate-900 text-white p-4 w-[min(92vw,54rem)]'>
+  <div class='flex justify-between items-center mb-3'><h2 id='trip-map-title'></h2><form method='dialog'><button type='submit' class='px-3 py-1 border rounded' aria-label='{{ t("nav_map") }} ×'>×</button></form></div>
+  <div id='trip-map-detail' style='height: min(65vh, 540px)'></div>
+</dialog>
+<script>
+(() => {
+  const dialog = document.querySelector('#trip-map-dialog');
+  const mapTitle = {{ t('nav_map') | tojson }};
+  const unavailable = document.documentElement.lang.startsWith('it') ? 'Percorso non disponibile' : 'Route unavailable';
+  let map;
+  dialog.addEventListener('close', () => { if (map) { map.remove(); map = null; } });
+  async function preview(button) {
+    const label = button.querySelector('span');
+    try {
+      if (!/^\d+$/.test(button.dataset.trip)) throw new Error();
+      const response = await fetch('/api/trips/' + button.dataset.trip + '/route');
+      if (!response.ok) throw new Error();
+      const data = await response.json();
+      const coords = data.coords.filter(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite));
+      if (coords.length < 2) throw new Error();
+      const k = Math.cos(coords[0][0] * Math.PI / 180);
+      const xs = coords.map(p => p[1] * k), ys = coords.map(p => -p[0]);
+      const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+      const scale = Math.min(140 / (x1 - x0 || Infinity), 70 / (y1 - y0 || Infinity)) || Math.max(x1 === x0 ? 0 : 140 / (x1 - x0), y1 === y0 ? 0 : 70 / (y1 - y0));
+      if (!scale || !window.L) throw new Error();
+      const svg = button.querySelector('svg');
+      svg.querySelector('polyline').setAttribute('points', xs.map((x, i) => `${80 + (x - (x0 + x1) / 2) * scale},${45 + (ys[i] - (y0 + y1) / 2) * scale}`).join(' '));
+      svg.classList.remove('hidden');
+      label.textContent = mapTitle;
+      button.disabled = false;
+      button.addEventListener('click', () => {
+        document.querySelector('#trip-map-title').textContent = mapTitle + ': ' + button.dataset.time;
+        dialog.showModal();
+        map = L.map('trip-map-detail');
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
+        const line = L.polyline(coords, {color: '#0f766e', weight: 5}).addTo(map);
+        map.fitBounds(line.getBounds(), {padding: [20, 20], maxZoom: 17});
+      });
+    } catch { label.textContent = unavailable; }
+  }
+  const queue = [];
+  let active = 0;
+  function drain() {
+    while (active < 2 && queue.length) {
+      active++;
+      preview(queue.shift()).finally(() => { active--; drain(); });
+    }
+  }
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => { if (entry.isIntersecting) { observer.unobserve(entry.target); queue.push(entry.target); } });
+    drain();
+  });
+  document.querySelectorAll('button[data-trip]').forEach(button => observer.observe(button));
+})();
+</script>
 {% endblock %}
